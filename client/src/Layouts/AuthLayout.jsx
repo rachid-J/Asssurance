@@ -1,13 +1,19 @@
-import React from 'react'
+
+import React, { useEffect } from 'react'
+import { useSelector } from 'react-redux';
 import { Outlet, useNavigate } from 'react-router-dom'
 
 export const AuthLayout = () => {
-    const token = localStorage.getItem('token')
     const navigate = useNavigate()
-    if (token) {
-        navigate('/')
-        
-    }
+   
+    const isAuthenticated = useSelector(state => state.auth.isAuthenticated);
+    
+  
+    useEffect(() => {
+      if (isAuthenticated) {
+        navigate('/');
+      }
+    }, [isAuthenticated, navigate]);
   return (
     
         <Outlet />

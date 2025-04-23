@@ -1,6 +1,6 @@
 import { Fragment, useState } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
-import { Outlet, Link, useLocation } from 'react-router-dom'
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   Bars3Icon,
   XMarkIcon,
@@ -10,17 +10,14 @@ import {
   CurrencyDollarIcon,
   DocumentTextIcon,
   UserGroupIcon,
+  ArrowRightOnRectangleIcon,
 } from '@heroicons/react/24/outline'
 import logo from '../../assets/logo.png'
+import { translations } from '../../shared/translations'
+import { useDispatch, useSelector } from 'react-redux'
+import { logout } from '../../Auth/authSlice'
 
-const navigation = [
-  { name: 'Dashboard', href: '/', icon: HomeIcon },
-  { name: 'Clients', href: '/clients', icon: UsersIcon },
-  { name: 'Assurance Cases', href: '/assurance-cases', icon: DocumentDuplicateIcon },
-  { name: 'Payments', href: '/payments', icon: CurrencyDollarIcon },
-  { name: 'Documents', href: '/documents', icon: DocumentTextIcon },
-  {name : "User Management", href: '/user-management', icon: UserGroupIcon},
-]
+
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ')
@@ -29,7 +26,25 @@ function classNames(...classes) {
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const location = useLocation()
+  const user = useSelector((state) => state.auth.user)
+  console.log(user)
+  const dispatch = useDispatch()
+  const navigate = useNavigate()
 
+  const [currentlangage, setCurrentLangage] = useState(localStorage.getItem('lang') )
+
+  const navigation = [
+    { name: translations[currentlangage].dashboard, href: '/', icon: HomeIcon },
+    { name: translations[currentlangage].clients, href: '/clients', icon: UsersIcon },
+    { name: translations[currentlangage].assuranceCases, href: '/assurance-cases', icon: DocumentDuplicateIcon },
+    { name: translations[currentlangage].payments, href: '/payments', icon: CurrencyDollarIcon },
+    { name: translations[currentlangage].documents, href: '/documents', icon: DocumentTextIcon },
+    {name : translations[currentlangage].userManagement, href: '/user-management', icon: UserGroupIcon},
+  ]
+  const handleLogout = () => {
+    dispatch(logout())
+    navigate('/login')
+  }
   return (
     <>
       <div>
@@ -69,7 +84,7 @@ export default function Layout() {
                   >
                     <div className="absolute left-full top-0 flex w-16 justify-center pt-5">
                       <button type="button" className="-m-2.5 p-2.5" onClick={() => setSidebarOpen(false)}>
-                        <span className="sr-only">Close sidebar</span>
+                        <span className="sr-only">{translations[currentlangage].closeSidebar}</span>
                         <XMarkIcon className="h-6 w-6 text-white" aria-hidden="true" />
                       </button>
                     </div>
@@ -139,6 +154,15 @@ export default function Layout() {
                   </ul>
                 </li>
               </ul>
+              <button
+      onClick={handleLogout}
+      className="w-full text-left text-gray-300 hover:text-white hover:bg-[#272F65] group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
+    >
+      <ArrowRightOnRectangleIcon className="h-6 w-6 shrink-0 text-white group-hover:text-white" />
+      <span className="text-sm font-medium text-white group-hover:text-red-600 hidden lg:inline">
+        {translations[currentlangage].logout}
+      </span>
+    </button>
             </nav>
           </div>
         </div>
@@ -147,17 +171,25 @@ export default function Layout() {
         <div className="lg:pl-72">
           <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
             <button type="button" className="-m-2.5 p-2.5 text-gray-700 lg:hidden" onClick={() => setSidebarOpen(true)}>
-              <span className="sr-only">Open sidebar</span>
+              <span className="sr-only">{translations[currentlangage].openSidebar}</span>
               <Bars3Icon className="h-6 w-6" aria-hidden="true" />
             </button>
 
-            {/* Separator */}
             <div className="h-6 w-px bg-gray-200 lg:hidden" aria-hidden="true" />
 
             <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
               <div className="flex flex-1"></div>
               <div className="flex items-center gap-x-4 lg:gap-x-6">
-                {/* Profile dropdown can be added here */}
+                {/* User Info and Logout */}
+                <div className="flex items-center gap-x-3">
+                  <div className="text-right">
+                    <p className="text-sm font-medium text-gray-700">{user?.username}</p>
+                    <p className="text-xs text-gray-500">{user?.role}</p>
+                    
+                  </div>
+                  <span className={`w-2 h-2 rounded-full ${user?.status === 'Active' ? 'bg-green-600' : 'bg-red-600'}`}></span>
+                 
+                </div>
               </div>
             </div>
           </div>

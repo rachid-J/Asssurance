@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { XMarkIcon, UserPlusIcon } from '@heroicons/react/24/outline'
+import { translations } from '../../shared/translations'
 
 export const EditUserModal = ({ isOpen, onClose, onSave, initialData }) => {
   const [formData, setFormData] = useState({
@@ -8,24 +9,27 @@ export const EditUserModal = ({ isOpen, onClose, onSave, initialData }) => {
     password: ''
   })
   const [errors, setErrors] = useState({})
+  const [currentlangage, setCurrentLangage] = useState(localStorage.getItem('lang') )
 
   useEffect(() => {
     if (isOpen) {
-      setFormData(initialData || { username: '', email: '', password: '' })
+      const { password, ...rest } = initialData || {}
+      setFormData({ username: '', email: '', ...rest, password: '' })
       setErrors({})
     }
   }, [isOpen, initialData])
+  
 
   const validate = () => {
     const newErrors = {}
-    if (!formData.username.trim()) newErrors.username = 'Username is required'
+    if (!formData.username.trim()) newErrors.username = translations[currentlangage].usernameRequired
     if (!formData.email.trim()) {
-      newErrors.email = 'Email is required'
+      newErrors.email = translations[currentlangage].emailRequired
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Invalid email format'
+      newErrors.email = translations[currentlangage].emailInvalid
     }
-    if (!formData.password.trim()) newErrors.password = 'Password is required'
-    if (formData.password.length < 8) newErrors.password = 'Password must be at least 8 characters long'
+    if (!formData.password.trim()) newErrors.password = translations[currentlangage].passwordRequired
+    if (formData.password.length < 8) newErrors.password = translations[currentlangage].passwordTooShort
     
     return newErrors
   }
@@ -50,7 +54,7 @@ export const EditUserModal = ({ isOpen, onClose, onSave, initialData }) => {
         <div className="flex justify-between items-center p-4 border-b">
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <UserPlusIcon className="h-6 w-6 text-[#1E265F]" />
-            Edit User
+            {translations[currentlangage].editUser}
           </h3>
           <button
             onClick={onClose}
@@ -64,7 +68,7 @@ export const EditUserModal = ({ isOpen, onClose, onSave, initialData }) => {
         <form onSubmit={handleSubmit} className="p-4">
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Username *</label>
+              <label className="block text-sm font-medium mb-1">{translations[currentlangage].username} *</label>
               <input
                 type="text"
                 className={`w-full rounded border px-3 py-2 ${
@@ -77,7 +81,7 @@ export const EditUserModal = ({ isOpen, onClose, onSave, initialData }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Email *</label>
+              <label className="block text-sm font-medium mb-1">{translations[currentlangage].email}</label>
               <input
                 type="email"
                 className={`w-full rounded border px-3 py-2 ${
@@ -90,7 +94,7 @@ export const EditUserModal = ({ isOpen, onClose, onSave, initialData }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Password</label>
+              <label className="block text-sm font-medium mb-1">{translations[currentlangage].passwordLabel} *</label>
               <input
                 name="password"
                 type="password"
@@ -111,13 +115,13 @@ export const EditUserModal = ({ isOpen, onClose, onSave, initialData }) => {
               onClick={onClose}
               className="px-4 py-2 border rounded hover:bg-gray-50"
             >
-              Cancel
+              {translations[currentlangage].cancel}
             </button>
             <button
               type="submit"
               className="px-4 py-2 bg-[#1E265F] text-white rounded hover:bg-[#272F65]"
             >
-              Update User
+              {translations[currentlangage].saveUser}
             </button>
           </div>
         </form>

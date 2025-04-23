@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
-import { translations } from './translations';
+import { translations } from '../shared/translations';
 import { LockClosedIcon, UserIcon, EyeIcon, EyeSlashIcon, ShieldCheckIcon, KeyIcon } from '@heroicons/react/24/outline';
 import logo from '../assets/logo.png';
 import { axiosClient } from '../service/axiosClient';
 import { useNavigate } from 'react-router-dom';
+import { login } from './authSlice';
+import { useDispatch } from 'react-redux';
 export const Auth = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [rememberMe, setRememberMe] = useState(false);
     const [currentLanguage, setCurrentLanguage] = useState('en');
+    const dispach = useDispatch();
     const navigate = useNavigate();
     const handlePasswordChange = (e) => {
         const newPassword = e.target.value;
@@ -25,7 +28,8 @@ export const Auth = () => {
       const response = await axiosClient.post('/auth/login', formData)
         console.log(response)
         if (response.status === 200) {
-            localStorage.setItem('token', response.data.token);
+            dispach(login(response.data))
+
             navigate("/")
             console.log('Login successful');
             // Handle successful login (e.g., redirect to dashboard)
@@ -33,6 +37,11 @@ export const Auth = () => {
             console.error('Login failed');
             // Handle login failure (e.g., show error message)
         }
+    }
+
+    const changeLanguage = (lang) => {
+        setCurrentLanguage(lang);
+        localStorage.setItem('lang', lang);
     }
 
     return (
@@ -154,17 +163,17 @@ export const Auth = () => {
                     <div className="mb-4">
                         <div className="inline-flex border border-[#999AB6] rounded-md">
                             <button
-                                onClick={() => setCurrentLanguage('en')}
+                                onClick={() => changeLanguage('en')}
                                 className={`px-3 py-1 text-sm ${currentLanguage === 'en' ? 'bg-[#FBFBFB] text-[#1E265F]' : 'text-[#999AB6]'} border-r border-[#999AB6] cursor-pointer whitespace-nowrap !rounded-button`}>
                                 English
                             </button>
                             <button
-                                onClick={() => setCurrentLanguage('fr')}
+                                onClick={() => changeLanguage('fr')}
                                 className={`px-3 py-1 text-sm ${currentLanguage === 'fr' ? 'bg-[#FBFBFB] text-[#1E265F]' : 'text-[#999AB6]'} border-r border-[#999AB6] cursor-pointer whitespace-nowrap !rounded-button`}>
                                 Français
                             </button>
                             <button
-                                onClick={() => setCurrentLanguage('ar')}
+                                onClick={() => changeLanguage('ar')}
                                 className={`px-3 py-1 text-sm ${currentLanguage === 'ar' ? 'bg-[#FBFBFB] text-[#1E265F]' : 'text-[#999AB6]'} cursor-pointer whitespace-nowrap !rounded-button`}>
                                 العربية
                             </button>

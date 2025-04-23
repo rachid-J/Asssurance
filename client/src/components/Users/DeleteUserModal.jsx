@@ -1,7 +1,11 @@
 import { XMarkIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { translations } from '../../shared/translations'
+import { useState } from 'react'
 
 
 export const DeleteUserModal = ({ isOpen, onClose, onDelete, userData }) => {
+  const [currentlangage, setCurrentLangage] = useState(localStorage.getItem('lang'))
+
   if (!isOpen) return null
 
   const handleDelete = () => {
@@ -16,7 +20,7 @@ export const DeleteUserModal = ({ isOpen, onClose, onDelete, userData }) => {
         <div className="flex justify-between items-center p-4 border-b">
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <TrashIcon className="h-6 w-6 text-red-600" />
-            Delete User
+            {translations[currentlangage].deleteUser}
           </h3>
           <button
             onClick={onClose}
@@ -30,11 +34,11 @@ export const DeleteUserModal = ({ isOpen, onClose, onDelete, userData }) => {
         {/* Modal Body */}
         <div className="p-6">
           <p className="text-gray-700">
-            Are you sure you want to delete user{' '}
+            {translations[currentlangage].deleteConfirmation}{' '}
             <span className="font-semibold text-[#1E265F]">
               {userData?.username}
             </span>
-            ? This action cannot be undone.
+            ? {translations[currentlangage].deleteWarning}
           </p>
         </div>
 
@@ -45,14 +49,14 @@ export const DeleteUserModal = ({ isOpen, onClose, onDelete, userData }) => {
             onClick={onClose}
             className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
           >
-            Cancel
+            {translations[currentlangage].cancel}
           </button>
           <button
             type="button"
             onClick={handleDelete}
             className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
           >
-            Delete User
+            {translations[currentlangage].deleteUser}
           </button>
         </div>
       </div>

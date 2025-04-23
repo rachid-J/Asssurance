@@ -5,4 +5,12 @@ export const login = async (credential) => {
     return response
 }
 
+export const me = async () => {
+    const response = await axiosClient.get('/auth/me')
+    return response
+}
 
+export const logout = async () => {
+    const response = await axiosClient.post('/auth/logout')
+    return response
+}
