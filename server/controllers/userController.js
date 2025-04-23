@@ -15,7 +15,6 @@ exports.createUser = async (req, res) => {
         email,
         password: hashedPassword,
         role: 'agent',
-        status: 'Active', // Adding default status
       });
       
       // Make sure req.io exists before emitting

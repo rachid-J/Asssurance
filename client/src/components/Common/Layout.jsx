@@ -16,6 +16,8 @@ import logo from '../../assets/logo.png'
 import { translations } from '../../shared/translations'
 import { useDispatch, useSelector } from 'react-redux'
 import { logout } from '../../Auth/authSlice'
+import { axiosClient } from '../../service/axiosClient'
+import { logoutUser } from '../../service/authservice'
 
 
 
@@ -41,9 +43,12 @@ export default function Layout() {
     { name: translations[currentlangage].documents, href: '/documents', icon: DocumentTextIcon },
     {name : translations[currentlangage].userManagement, href: '/user-management', icon: UserGroupIcon},
   ]
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const res = await logoutUser()
+    if (res.status === 200) {   
     dispatch(logout())
     navigate('/login')
+    }
   }
   return (
     <>
@@ -187,7 +192,7 @@ export default function Layout() {
                     <p className="text-xs text-gray-500">{user?.role}</p>
                     
                   </div>
-                  <span className={`w-2 h-2 rounded-full ${user?.status === 'Active' ? 'bg-green-600' : 'bg-red-600'}`}></span>
+                  <span className={`w-2 h-2 rounded-full ${user?.status === 'Actif' ? 'bg-green-600' : 'bg-red-600'}`}></span>
                  
                 </div>
               </div>

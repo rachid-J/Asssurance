@@ -2,59 +2,8 @@ import { useState } from 'react'
 import { MagnifyingGlassIcon, PlusIcon } from '@heroicons/react/24/outline'
 
 const clients = [
-  {
-    id: 1,
-    name: 'Ahmed Hassan',
-    policy: 'POL-2025001',
-    type: 'AN',
-    usage: 'C1',
-    status: 'Active',
-    lastPayment: '2025-04-15',
-  },
-  {
-    id: 2,
-    name: 'Ahmed Hassan',
-    policy: 'POL-2025001',
-    type: 'REN',
-    usage: 'C2',
-    status: 'Active',
-    lastPayment: '2025-04-15',
-  },
-  {
-    id: 3,
-    name: 'Ahmed Hassan',
-    policy: 'POL-2025001',
-    type: 'RP',
-    usage: 'D',
-    status: 'Active',
-    lastPayment: '2025-04-15',
-  },
-  {
-    id: 4,
-    name: 'Ahmed Hassan',
-    policy: 'POL-2025001',
-    type: 'CV',
-    usage: 'P',
-    status: 'Active',
-    lastPayment: '2025-04-15',
-  },{
-    id: 5,
-    name: 'Ahmed Hassan',
-    policy: 'POL-2025001',
-    type: 'CI',
-    usage: 'E',
-    status: 'Active',
-    lastPayment: '2025-04-15',
-  },{
-    id: 6,
-    name: 'Ahmed Hassan',
-    policy: 'POL-2025001',
-    type: 'REN',
-    usage: 'A',
-    status: 'Active',
-    lastPayment: '2025-04-15',
-  },
-  // Add more sample clients here
+  { _id: "1", name: "HAJJI AHMED" },
+  // Add more clients...
 ]
 
 export default function ClientList() {
@@ -62,11 +11,12 @@ export default function ClientList() {
 
   return (
     <div>
+      {/* Header and Add button */}
       <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
           <h1 className="text-2xl font-semibold text-gray-900">Clients</h1>
           <p className="mt-2 text-sm text-gray-700">
-            A list of all clients including their name, policy number, type, and status.
+            A list of all registered clients
           </p>
         </div>
         <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
@@ -106,22 +56,7 @@ export default function ClientList() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
-                      Name
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      Policy Number
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      Type
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      Usage
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      Status
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      Last Payment
+                      Client Name
                     </th>
                     <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
                       <span className="sr-only">Actions</span>
@@ -131,30 +66,15 @@ export default function ClientList() {
                 <tbody className="divide-y divide-gray-200 bg-white">
                   {clients
                     .filter(client => 
-                      client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                      client.policy.toLowerCase().includes(searchTerm.toLowerCase())
-                    )
-                    .map((client) => (
-                      <tr key={client.id}>
+                      client.name.toLowerCase().includes(searchTerm.toLowerCase())
+                    ).map((client) => (
+                      <tr key={client._id}>
                         <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
                           {client.name}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{client.policy}</td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{client.type}</td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{client.usage}</td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm">
-                          <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium 
-                            ${client.status === 'Active' 
-                              ? 'bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20'
-                              : 'bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/20'
-                            }`}>
-                            {client.status}
-                          </span>
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{client.lastPayment}</td>
                         <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                           <a href="#" className="text-[#1E265F] hover:text-[#272F65]">
-                            Edit<span className="sr-only">, {client.name}</span>
+                            View Policies<span className="sr-only">, {client.name}</span>
                           </a>
                         </td>
                       </tr>

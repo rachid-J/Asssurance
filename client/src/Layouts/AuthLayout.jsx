@@ -5,6 +5,7 @@ import { Outlet, useNavigate } from 'react-router-dom'
 
 export const AuthLayout = () => {
     const navigate = useNavigate()
+    
    
     const isAuthenticated = useSelector(state => state.auth.isAuthenticated);
     

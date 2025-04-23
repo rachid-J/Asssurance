@@ -18,7 +18,6 @@ export const UserManagement = () => {
   const [selectedUser, setSelectedUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [socketConnected, setSocketConnected] = useState(false)
   const [currentlangage, setCurrentLangage] = useState(localStorage.getItem('lang') )
   
   // Log the server URL for debugging

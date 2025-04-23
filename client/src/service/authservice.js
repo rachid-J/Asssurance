@@ -10,7 +10,7 @@ export const me = async () => {
     return response
 }
 
-export const logout = async () => {
+export const logoutUser = async () => {
     const response = await axiosClient.post('/auth/logout')
     return response
 }
