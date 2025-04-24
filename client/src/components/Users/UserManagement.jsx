@@ -62,6 +62,14 @@ export const UserManagement = () => {
     socket.on('user-deleted', (deletedUserId) => {
       console.log('Socket: User deleted event received', deletedUserId)
       setUsers(prevUsers => prevUsers.filter(user => user._id !== deletedUserId))
+    
+    })
+
+    socket.on('user-status-change', ({ userId, status }) => {
+      console.log('Socket: User status changed', userId, status)
+      setUsers(prevUsers => prevUsers.map(user => 
+        user._id === userId ? {...user, status} : user
+      ))
     })
 
     // Cleanup function
@@ -69,6 +77,7 @@ export const UserManagement = () => {
       socket.off('user-added')
       socket.off('user-updated')
       socket.off('user-deleted')
+      socket.off('user-status-change')
     }
     
   }, [])

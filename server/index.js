@@ -10,6 +10,8 @@ const connectDB = require('./config/db');
 const User = require('./models/User');
 const cookieParser = require('cookie-parser');
 const cookie = require('cookie');
+const policyRoutes = require('./routes/policyRoutes');
+
 
 // Load environment variables
 dotenv.config();
@@ -75,12 +77,43 @@ app.use((req, res, next) => {
 // Routes - These should come after adding io to the request
 app.use('/api/auth', authRoutes);
 app.use('/api/users', UserRoutes);
-
+app.use('/api/policies', policyRoutes);
 // Socket.io connection handler
 io.on('connection', (socket) => {
+
+  if (socket.user) {
+    const updateStatus = async () => {
+      try {
+        const user = await User.findById(socket.user._id);
+        if (user) {
+          user.status = 'Actif';
+          await user.save();
+          io.emit('user-status-change', { userId: user._id, status: 'Actif' });
+        }
+      } catch (err) {
+        console.error('Error updating status:', err);
+      }
+    };
+    
+    updateStatus();
+  }
   console.log('A client connected:', socket.id);
-  socket.on('disconnect', () => {
+  socket.on('disconnect',async () => {
+    
     console.log('Client disconnected:', socket.id);
+    if (socket.user) {
+      try {
+        const user = await User.findById(socket.user._id);
+        if (user) {
+          user.status = 'Inactif';
+          await user.save();
+          io.emit('user-status-change', { userId: user._id, status: 'Inactif' });
+        }
+      } catch (err) {
+        console.error('Error updating status:', err);
+      }
+    }
+    
   });
 });
 

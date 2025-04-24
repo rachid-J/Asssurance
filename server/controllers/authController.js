@@ -12,6 +12,8 @@ exports.loginUser = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
     user.status = 'Actif';
+    req.io.emit('user-status-change', { userId: user._id, status: 'Actif' });
+
     const token = jwt.sign(
       { id: user._id, role: user.role },
       process.env.JWT_SECRET,
@@ -48,6 +50,7 @@ exports.me = async (req, res) => {
     const user = await User.findById(decoded.id).select('-password');
     if (!user) return res.status(404).json({ message: 'User not found' });
     user.status = 'Actif';
+    req.io.emit('user-status-change', { userId: user._id, status: 'Actif' });
     res.json({
       id: user._id,
       username: user.username,
@@ -67,6 +70,7 @@ exports.logoutUser = async (req, res) => {
         const user = await User.findById(decoded.id);
         if (user) {
           user.status = 'Inactif';
+          req.io.emit('user-status-change', { userId: user._id, status: 'Inactif' });
           await user.save();
         }
       }

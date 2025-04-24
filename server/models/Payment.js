@@ -1,59 +1,32 @@
+// models/Payment.js
 const mongoose = require('mongoose');
 
 const paymentSchema = new mongoose.Schema({
-  assuranceCase: {
+  policy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'AssuranceCase',
+    ref: 'Policy',
     required: true
   },
-  installmentNumber: {
+  advanceNumber: {
     type: Number,
-    required: true
+    required: true,
+    min: 1,
+    max: 4
+  },
+  paymentDate: {
+    type: Date,
+    default: null
   },
   amount: {
     type: Number,
     required: true
-  },
-  dueDate: {
-    type: Date,
-    required: true
-  },
-  paymentDate: {
-    type: Date
-  },
-  status: {
-    type: String,
-    enum: ['Pending', 'Paid', 'Overdue'],
-    default: 'Pending'
-  },
-  paymentMethod: {
-    type: String
-  },
-  reference: {
-    type: String
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
   }
 });
 
-// Update timestamp on document update
-paymentSchema.pre('save', function(next) {
-  this.updatedAt = Date.now();
-  next();
-});
+// Compound index to ensure unique advances per policy
+paymentSchema.index({ policy: 1, advanceNumber: 1 }, { unique: true });
 
-// Check if payment is overdue
-paymentSchema.pre('save', function(next) {
-  if (this.status === 'Pending' && this.dueDate < new Date()) {
-    this.status = 'Overdue';
-  }
-  next();
-});
+// Index for payment status queries
+paymentSchema.index({ paymentDate: 1 });
 
 module.exports = mongoose.model('Payment', paymentSchema);
