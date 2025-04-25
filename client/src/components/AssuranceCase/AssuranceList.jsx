@@ -84,7 +84,9 @@ export default function AssuranceList() {
   const fetchPayments = async (policyId) => {
     try {
       const data = await getPolicyPayments(policyId);
+      
       setPayments(data);
+    
     } catch (err) {
       console.error("Error fetching payments:", err);
     }
@@ -94,25 +96,24 @@ export default function AssuranceList() {
   const getPaymentStatus = (policyNumber) => {
     const policyPayments = payments.filter(payment => payment.policy === policyNumber);
     const paidAdvances = policyPayments.filter(payment => payment.paymentDate).length;
-    const totalAdvances = policyPayments.length || 4; // Default to 4 if no payments defined
-    const remainingAdvances = totalAdvances - paidAdvances;
-
-    // Calculate total paid amount
+    const totalAdvances = policyPayments.length || 4;
+    
     const paidAmount = policyPayments
       .filter(payment => payment.paymentDate)
       .reduce((sum, payment) => sum + payment.amount, 0);
-
-    // Find the associated policy to get total amount
+  
     const policy = policies.find(p => p.policyNumber === policyNumber);
     const totalAmount = policy ? policy.primeTTC : 0;
-
+    const remainingAmount = Math.max(totalAmount - paidAmount, 0);
+  
     return {
       paidAdvances,
       totalAdvances,
-      remainingAdvances,
       paidAmount,
       totalAmount,
-      paymentPercentage: totalAmount > 0 ? (paidAmount / totalAmount) * 100 : 0
+      remainingAmount,
+      paymentPercentage: totalAmount > 0 ? 
+        Math.min((paidAmount / totalAmount) * 100, 100) : 0
     };
   };
 
@@ -123,14 +124,7 @@ export default function AssuranceList() {
     setShowPaymentModal(true);
   };
 
-  // Handle payment update
-  const handlePaymentUpdate = async () => {
-    if (selectedPolicy) {
-      await fetchPayments(selectedPolicy._id);
-      fetchPolicies(); // Refresh policy list to update payment status
-    }
-    setShowPaymentModal(false);
-  };
+
 
   const [showCreateModal, setShowCreateModal] = useState(false);
 
@@ -294,6 +288,7 @@ export default function AssuranceList() {
                         {policies.map((policy) => {
                           // Use paymentStatus from the server if available, otherwise calculate locally
                           const paymentStatus = policy.paymentStatus || getPaymentStatus(policy.policyNumber);
+                          console.log(paymentStatus)
                           return (
                             <tr key={policy._id}>
                               <td className="whitespace-nowrap px-3 py-4 text-sm font-medium text-gray-900">
@@ -321,23 +316,26 @@ export default function AssuranceList() {
                                 {new Date(policy.startDate).toLocaleDateString()}
                               </td>
                               <td className="px-3 py-4 text-sm text-gray-500">
-                                <div className="flex flex-col space-y-1">
-                                  <div className="text-xs text-gray-500">
-                                    {paymentStatus?.paidAdvances || 0} of {paymentStatus?.totalAdvances || 4} advances paid
-                                  </div>
-                                  <div className="w-full bg-gray-200 rounded-full h-2">
-                                    <div
-                                      className={`h-2 rounded-full ${(paymentStatus?.paymentPercentage || 0) < 33 ? 'bg-red-500' :
-                                          (paymentStatus?.paymentPercentage || 0) < 66 ? 'bg-yellow-500' : 'bg-green-500'
-                                        }`}
-                                      style={{ width: `${paymentStatus?.paymentPercentage || 0}%` }}
-                                    ></div>
-                                  </div>
-                                  <div className="text-xs text-gray-500">
-                                    {(paymentStatus?.paidAmount || 0).toFixed(2)} / {(paymentStatus?.totalAmount || 0).toFixed(2)} MAD
-                                  </div>
-                                </div>
-                              </td>
+          <div className="flex flex-col space-y-1">
+            <div className="text-xs text-gray-500">
+              {paymentStatus?.paidAdvances || 0} of {paymentStatus?.totalAdvances} advances paid
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className={`h-2 rounded-full ${
+                  (paymentStatus?.paymentPercentage || 0) < 33 ? 'bg-red-500' :
+                  (paymentStatus?.paymentPercentage || 0) < 66 ? 'bg-yellow-500' : 'bg-green-500'
+                }`}
+                style={{ width: `${paymentStatus?.paymentPercentage || 0}%` }}
+              ></div>
+            </div>
+            <div className="text-xs text-gray-500">
+              {(paymentStatus?.paidAmount || 0).toFixed(2)} / {(paymentStatus?.totalAmount || 0).toFixed(2)} MAD
+              <br />
+              Remaining: {(paymentStatus?.remainingAmount || 0).toFixed(2)} MAD
+            </div>
+          </div>
+        </td>
                               <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                                 <div className="flex items-center space-x-2">
                                   <button
@@ -377,13 +375,17 @@ export default function AssuranceList() {
       </div>
       {/* Payment Modal */}
       {showPaymentModal && selectedPolicy && (
-        <PaymentModal
-          policy={selectedPolicy}
-          payments={payments}
-          onClose={() => setShowPaymentModal(false)}
-          onPaymentUpdate={handlePaymentUpdate}
-        />
-      )}
+  <PaymentModal
+    isOpen={showPaymentModal}
+    onClose={() => setShowPaymentModal(false)}
+    policy={selectedPolicy}
+    payments={payments}
+    onPaymentUpdated={() => {
+      fetchPayments(selectedPolicy._id);
+      fetchPolicies(); // Refresh the policies list to update payment status
+    }}
+  />
+)}
       {showCreateModal && (
         <CreatePolicyModal
           onClose={() => setShowCreateModal(false)}

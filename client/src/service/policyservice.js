@@ -65,43 +65,47 @@ export const getPolicyTotals = async (searchParams = {}) => {
 
 // Payment management
 export const getPolicyPayments = async (policyId) => {
-  try {
-    const response = await axiosClient.get(`/policies/${policyId}/payments`);
-    return response.data;
-  } catch (error) {
-    console.error(`Error fetching payments for policy ${policyId}:`, error);
-    throw error;
-  }
-};
-
-export const updatePayment = async (policyId, advanceNumber, paymentData) => {
-  try {
-    const response = await axiosClient.put(
-      `/policies/${policyId}/payments/${advanceNumber}`, 
-      paymentData
-    );
-    return response.data;
-  } catch (error) {
-    console.error(`Error updating payment ${advanceNumber} for policy ${policyId}:`, error);
-    throw error;
-  }
-};
-
-export const completeAllPayments = async (policyId, paymentData) => {
     try {
-      // Convert payment date to ISO format
-      const formattedData = {
-        ...paymentData,
-        paymentDate: new Date(paymentData.paymentDate).toISOString()
-      };
+      const response = await axiosClient.get(`/payments/${policyId}/`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching payments for policy ${policyId}:`, error);
+      throw error;
+    }
+  };
+
+// client/src/service/policyservice.js
+
   
+  export const createPayment = async (policyId, paymentData) => {
+    try {
       const response = await axiosClient.post(
-        `/policies/${policyId}/payments/complete`,
-        formattedData
+        `/payments/${policyId}`,
+        paymentData
       );
       return response.data;
     } catch (error) {
-      console.error(`Error completing payments for policy ${policyId}:`, error);
-      throw error;
+      throw new Error(error.response?.data?.message || 'Failed to create payment');
+    }
+  };
+
+  export const updatePayment = async (paymentId, paymentData) => {
+    try {
+      const response = await axiosClient.put(`/payments/${paymentId}`, paymentData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Payment update failed');
+    }
+  };
+  
+  export const completeAllPayments = async (policyId, paymentData) => {
+    try {
+      const response = await axiosClient.post(
+        `/payments/${policyId}/complete`,
+        paymentData
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Full payment failed');
     }
   };

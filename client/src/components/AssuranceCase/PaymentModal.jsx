@@ -1,376 +1,484 @@
-import { useState, useEffect } from 'react';
-import { updatePayment, completeAllPayments } from '../../service/policyservice';
+import { useState, useEffect, useRef } from 'react';
+import { XMarkIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { createPayment } from '../../service/policyservice';
 
-export default function PaymentModal({ policy, payments, onClose, onPaymentUpdate }) {
-  const [isAddingPayment, setIsAddingPayment] = useState(false);
-  const [selectedAdvance, setSelectedAdvance] = useState(null);
-  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
-  const [paymentAmount, setPaymentAmount] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('cash');
-  const [paymentReference, setPaymentReference] = useState('');
-  const [notes, setNotes] = useState('');
-  const [isFullPayment, setIsFullPayment] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+export default function PaymentModal({ isOpen, onClose, policy, payments, onPaymentUpdated }) {
+  const [localPayments, setLocalPayments] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [paymentType, setPaymentType] = useState('advance'); // 'advance' or 'full'
+  const [selectedAdvance, setSelectedAdvance] = useState(1);
+  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [paymentAmount, setPaymentAmount] = useState(0);
+  const [reference, setReference] = useState('');
+  const [notes, setNotes] = useState('');
+  const modalRef = useRef(null);
 
-  // Ensure payments is always an array even if it's null or undefined
-  const paymentArray = Array.isArray(payments) ? payments : [];
-
-  // Sort policy payments by advance number
-  const sortedPayments = [...paymentArray].sort((a, b) => a.advanceNumber - b.advanceNumber);
-
-  // Find next unpaid advance - make sure to check if paymentDate is null or undefined
-  const nextUnpaidAdvance = sortedPayments.find(payment => 
-    payment.paymentDate === null || payment.paymentDate === undefined
-  );
-
-  // Log for debugging
+  // Close when clicking outside the modal
   useEffect(() => {
-    console.log("Payments data:", sortedPayments);
-    console.log("Next unpaid advance:", nextUnpaidAdvance);
-  }, [sortedPayments, nextUnpaidAdvance]);
-
-  // Calculate payment statistics
-  const paidAmount = sortedPayments
-    .filter(payment => payment.paymentDate)
-    .reduce((sum, payment) => sum + payment.amount, 0);
-  const remainingAmount = policy.primeTTC - paidAmount;
-
-  // Initialize form when adding payment
-  const handleAddPayment = () => {
-    if (nextUnpaidAdvance) {
-      setSelectedAdvance(nextUnpaidAdvance);
-      setPaymentAmount(nextUnpaidAdvance.amount.toFixed(2));
-      setIsFullPayment(false);
-      setIsAddingPayment(true);
+    function handleClickOutside(event) {
+      if (modalRef.current && !modalRef.current.contains(event.target)) {
+        onClose();
+      }
     }
-  };
 
-  // Initialize form for full payment
-  const handleFullPayment = () => {
-    setSelectedAdvance(null);
-    setPaymentAmount(remainingAmount.toFixed(2));
-    setIsFullPayment(true);
-    setIsAddingPayment(true);
-  };
+    // Add event listener only if modal is open
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen, onClose]);
 
-  // Handle payment form submission
-  const handleSubmitPayment = async (e) => {
-    e.preventDefault();
-    setError(null);
-    setIsSubmitting(true);
-  
-    try {
-      // Basic validation
-      if (!paymentDate) {
-        throw new Error('Payment date is required');
+  // Handle escape key press
+  useEffect(() => {
+    function handleEscapeKey(event) {
+      if (event.key === 'Escape') {
+        onClose();
       }
-      
-      if (parseFloat(paymentAmount) <= 0) {
-        throw new Error('Payment amount must be positive');
-      }
-  
-      if (isFullPayment) {
-        // For full payments, ensure date is properly formatted
-        await completeAllPayments(policy._id, {
-          paymentDate: paymentDate, // The service will handle ISO formatting
-          paymentMethod,
-          reference: paymentReference,
-          notes
-        });
-      } else if (selectedAdvance) {
-        // For single advance payment
-        await updatePayment(
-          policy._id,
-          selectedAdvance.advanceNumber,
-          {
-            paymentDate: paymentDate, // The service will handle ISO formatting
-            amount: parseFloat(paymentAmount),
-            paymentMethod,
-            reference: paymentReference,
-            notes
-          }
-        );
+    }
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscapeKey);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscapeKey);
+    };
+  }, [isOpen, onClose]);
+
+  // Initialize payments when modal opens
+  useEffect(() => {
+    if (isOpen && policy) {
+      // If payments are provided, use them
+      if (payments && payments.length > 0) {
+        setLocalPayments(payments);
       } else {
-        throw new Error('No advance selected for payment');
+        // Otherwise create 4 default advances
+        const defaultAdvances = [1, 2, 3, 4].map(num => ({
+          advanceNumber: num,
+          paymentDate: null,
+          amount: policy.primeTTC / 4, // Split into 4 equal payments by default
+          paymentMethod: null,
+          reference: '',
+          notes: ''
+        }));
+        setLocalPayments(defaultAdvances);
       }
-      
-      // Reset form and notify parent
-      setIsAddingPayment(false);
-      // Wait a moment before refreshing to ensure server updates are complete
-      setTimeout(() => {
-        onPaymentUpdate();
-      }, 500);
-    } catch (err) {
-      console.error('Payment submission error:', err);
-      setError(err.response?.data?.message || err.message || 'Failed to process payment');
-    } finally {
-      setIsSubmitting(false);
+
+      // Set default payment amount based on policy
+      setPaymentAmount((policy.primeTTC / 4).toFixed(2));
+    }
+  }, [isOpen, policy, payments]);
+
+  // Handle payment type change
+  const handlePaymentTypeChange = (type) => {
+    setPaymentType(type);
+    if (type === 'full') {
+      setPaymentAmount(policy?.primeTTC.toFixed(2) || 0);
+    } else {
+      setPaymentAmount((policy?.primeTTC / 4).toFixed(2) || 0);
     }
   };
+
+  // Handle advance selection
+  const handleAdvanceSelection = (advanceNumber) => {
+    setSelectedAdvance(advanceNumber);
+    const advance = localPayments.find(p => p.advanceNumber === advanceNumber);
+    if (advance) {
+      setPaymentAmount(advance.amount.toFixed(2));
+      setPaymentMethod(advance.paymentMethod || 'cash');
+      setReference(advance.reference || '');
+      setNotes(advance.notes || '');
+      if (advance.paymentDate) {
+        setPaymentDate(new Date(advance.paymentDate).toISOString().split('T')[0]);
+      } else {
+        setPaymentDate(new Date().toISOString().split('T')[0]);
+      }
+    }
+  };
+
+  // Handle payment submission
+  const handleSubmitPayment = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      let paymentData;
+      
+      if (paymentType === 'full') {
+        // Use completeAllPayments endpoint for full payment
+        paymentData = {
+          paymentDate,
+          paymentMethod,
+          reference,
+          notes: notes + ' (Full payment)',
+          totalAmount: remainingAmount
+        };
+        
+        await completeAllPayments(policy._id, paymentData);
+        
+        // Update local state
+        const updatedPayments = localPayments.map(payment => ({
+          ...payment,
+          paymentDate: paymentData.paymentDate,
+          paymentMethod: paymentData.paymentMethod,
+          reference: paymentData.reference,
+          amount: payment.advanceNumber === 1 ? remainingAmount : 0,
+          notes: payment.advanceNumber === 1 ? paymentData.notes : 'Covered by full payment'
+        }));
+        
+        setLocalPayments(updatedPayments);
+      } else {
+        // Advance payment
+        paymentData = {
+          advanceNumber: selectedAdvance,
+          paymentDate,
+          amount: parseFloat(paymentAmount),
+          paymentMethod,
+          reference,
+          notes
+        };
+  
+        // Check for existing payment
+        const existingPayment = localPayments.find(p => 
+          p.advanceNumber === selectedAdvance && p._id
+        );
+  
+        if (existingPayment) {
+          // await updatePayment(existingPayment._id, paymentData);
+        } else {
+          await createPayment(policy._id, paymentData); // Fixed parameter order
+        }
+  
+        // Update local state
+        const updatedPayments = localPayments.map(p => 
+          p.advanceNumber === selectedAdvance ? 
+          { ...p, ...paymentData } : p
+        );
+        setLocalPayments(updatedPayments);
+      
+      
+      }
+      
+      setSuccess(`Payment ${paymentType === 'full' ? 'in full' : `for advance ${selectedAdvance}`} recorded successfully!`);
+      
+      // Notify parent component
+      if (onPaymentUpdated) {
+        onPaymentUpdated();
+      }
+      
+      // Reset form after success
+      setTimeout(() => {
+        setSuccess(null);
+      }, 3000);
+      
+    } catch (err) {
+      console.error("Error processing payment:", err);
+      setError("Failed to process payment. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Calculate payment status
+  const getPaymentStatus = () => {
+    const paidAdvances = localPayments.filter(payment => payment.paymentDate).length;
+    const totalAdvances = localPayments.length;
+    const paidAmount = localPayments
+      .filter(payment => payment.paymentDate)
+      .reduce((sum, payment) => sum + payment.amount, 0);
+    const totalAmount = policy?.primeTTC || 0;
+    
+    return {
+      paidAdvances,
+      totalAdvances,
+      paidAmount,
+      totalAmount,
+      paymentPercentage: totalAmount > 0 ? (paidAmount / totalAmount) * 100 : 0
+    };
+  };
+
+  const paymentStatus = getPaymentStatus();
+
+  if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#251a6c47] bg-opacity-75 overflow-y-auto">
-      <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0"> 
-        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-          {!isAddingPayment ? (
-            <>
-              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <div className="sm:flex sm:items-start">
-                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                    <h3 className="text-lg leading-6 font-medium text-gray-900">
-                      Payment Details - {policy.clientName}
-                    </h3>
-                    <div className="mt-2">
-                      <p className="text-sm text-gray-500 mb-4">
-                        Policy Number: {policy.policyNumber}
+    <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+      {/* Background overlay */}
+      <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+      
+      {/* Modal container */}
+      <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+        {/* Modal panel */}
+        <div 
+          ref={modalRef}
+          className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6"
+          style={{
+            animation: 'fadeIn 0.3s ease-out',
+          }}
+        >
+          <div className="absolute right-0 top-0 hidden pr-4 pt-4 sm:block">
+            <button
+              type="button"
+              className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#1E265F] focus:ring-offset-2"
+              onClick={onClose}
+            >
+              <span className="sr-only">Close</span>
+              <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+            </button>
+          </div>
+          
+          <div className="sm:flex sm:items-start">
+            <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
+              <h3 className="text-xl font-semibold leading-6 text-gray-900" id="modal-title">
+                Payment Details
+              </h3>
+              
+              {policy && (
+                <div className="mt-4 bg-gray-50 p-4 rounded-md">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500">Client</h4>
+                      <p className="text-base font-medium text-gray-900">{policy.clientName}</p>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500">Policy Number</h4>
+                      <p className="text-base font-medium text-gray-900">{policy.policyNumber}</p>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500">Total Amount</h4>
+                      <p className="text-base font-medium text-gray-900">{policy.primeTTC?.toFixed(2)} MAD</p>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500">Start Date</h4>
+                      <p className="text-base font-medium text-gray-900">
+                        {new Date(policy.startDate).toLocaleDateString()}
                       </p>
-                      
-                      <div className="bg-gray-50 p-3 rounded-md mb-4">
-                        <div className="flex justify-between text-sm">
-                          <span className="font-medium">Total Policy Amount:</span>
-                          <span className="font-semibold">{policy.primeTTC.toFixed(2)} MAD</span>
-                        </div>
-                        <div className="flex justify-between text-sm mt-1">
-                          <span className="font-medium">Payment Plan:</span>
-                          <span>{sortedPayments.length} advances</span>
-                        </div>
-                        <div className="flex justify-between text-sm mt-1">
-                          <span className="font-medium">Paid So Far:</span>
-                          <span>
-                            {paidAmount.toFixed(2)} MAD
-                          </span>
-                        </div>
-                        <div className="flex justify-between text-sm mt-1">
-                          <span className="font-medium">Remaining Amount:</span>
-                          <span>
-                            {remainingAmount.toFixed(2)} MAD
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-                        <table className="min-w-full divide-y divide-gray-300">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900">Advance #</th>
-                              <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Amount</th>
-                              <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
-                              <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Date</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-200 bg-white">
-                            {sortedPayments.length > 0 ? (
-                              sortedPayments.map((payment) => (
-                                <tr key={payment._id || `payment-${payment.advanceNumber}`}>
-                                  <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900">
-                                    {payment.advanceNumber}
-                                  </td>
-                                  <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                                    {payment.amount.toFixed(2)} MAD
-                                  </td>
-                                  <td className="whitespace-nowrap px-3 py-4 text-sm">
-                                    {payment.paymentDate ? (
-                                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                        Paid
-                                      </span>
-                                    ) : (
-                                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                        Pending
-                                      </span>
-                                    )}
-                                  </td>
-                                  <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                                    {payment.paymentDate ? 
-                                      new Date(payment.paymentDate).toLocaleDateString() : 
-                                      "-"
-                                    }
-                                  </td>
-                                </tr>
-                              ))
-                            ) : (
-                              <tr>
-                                <td colSpan="4" className="px-3 py-4 text-sm text-gray-500 text-center">
-                                  No payment advances defined for this policy.
-                                </td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                {remainingAmount > 0 && (
-                  <button 
-                    type="button" 
-                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm"
-                    onClick={handleFullPayment}
-                  >
-                    Pay Full Amount
-                  </button>
-                )}
-                {nextUnpaidAdvance && (
-                  <button 
-                    type="button" 
-                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-[#1E265F] text-base font-medium text-white hover:bg-[#272F65] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1E265F] sm:ml-3 sm:w-auto sm:text-sm"
-                    onClick={handleAddPayment}
-                  >
-                    Add Payment
-                  </button>
-                )}
-                <button 
-                  type="button" 
-                  className="mt-3 w-full inline-flex justify-center cursor-pointer rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1E265F] sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                  onClick={onClose}
-                >
-                  Close
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <div className="sm:flex sm:items-start">
-                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                    <h3 className="text-lg leading-6 font-medium text-gray-900">
-                      {isFullPayment 
-                        ? `Record Full Payment - ${remainingAmount.toFixed(2)} MAD` 
-                        : `Record Payment - Advance #${selectedAdvance?.advanceNumber}`}
-                    </h3>
-                    
-                    {error && (
-                      <div className="mt-3 bg-red-50 border border-red-200 text-red-800 p-3 rounded-md">
-                        <p>{error}</p>
-                      </div>
-                    )}
-                    
-                    <form onSubmit={handleSubmitPayment} className="mt-4">
-                      <div className="space-y-4">
-                        <div>
-                          <label htmlFor="paymentDate" className="block text-sm font-medium text-gray-700">
-                            Payment Date
-                          </label>
-                          <input
-                            type="date"
-                            id="paymentDate"
-                            name="paymentDate"
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm"
-                            value={paymentDate}
-                            onChange={(e) => setPaymentDate(e.target.value)}
-                            max={new Date().toISOString().split('T')[0]}
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor="paymentAmount" className="block text-sm font-medium text-gray-700">
-                            Amount (MAD)
-                          </label>
-                          <input
-                            type="number"
-                            id="paymentAmount"
-                            name="paymentAmount"
-                            step="0.01"
-                            min="0.01"
-                            max={isFullPayment ? remainingAmount : undefined}
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm"
-                            value={paymentAmount}
-                            onChange={(e) => setPaymentAmount(e.target.value)}
-                            required
-                            readOnly={isFullPayment}
-                          />
-                          {isFullPayment && (
-                            <p className="mt-1 text-sm text-gray-500">
-                              This will settle the entire remaining policy amount.
-                            </p>
-                          )}
-                        </div>
-                        <div>
-                          <label htmlFor="paymentMethod" className="block text-sm font-medium text-gray-700">
-                            Payment Method
-                          </label>
-                          <select
-                            id="paymentMethod"
-                            name="paymentMethod"
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm"
-                            value={paymentMethod}
-                            onChange={(e) => setPaymentMethod(e.target.value)}
-                            required
-                          >
-                            <option value="cash">Cash</option>
-                            <option value="bank_transfer">Bank Transfer</option>
-                            <option value="check">Check</option>
-                            <option value="card">Credit/Debit Card</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label htmlFor="paymentReference" className="block text-sm font-medium text-gray-700">
-                            Reference (Optional)
-                          </label>
-                          <input
-                            type="text"
-                            id="paymentReference"
-                            name="paymentReference"
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm"
-                            placeholder="Check number, transfer ID, etc."
-                            value={paymentReference}
-                            onChange={(e) => setPaymentReference(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
-                            Notes (Optional)
-                          </label>
-                          <textarea
-                            id="notes"
-                            name="notes"
-                            rows="3"
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm"
-                            placeholder="Any additional information about this payment"
-                            value={notes}
-                            onChange={(e) => setNotes(e.target.value)}
-                          ></textarea>
-                        </div>
-                      </div>
-                      <div className="mt-5 sm:mt-6 sm:flex sm:flex-row-reverse">
-                        <button
-                          type="submit"
-                          className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-[#1E265F] text-base font-medium text-white hover:bg-[#272F65] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1E265F] sm:ml-3 sm:w-auto sm:text-sm"
-                          disabled={isSubmitting}
-                        >
-                          {isSubmitting ? (
-                            <>
-                              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                              </svg>
-                              Processing...
-                            </>
-                          ) : isFullPayment ? (
-                            "Record Full Payment"
-                          ) : (
-                            "Record Payment"
-                          )}
-                        </button>
-                        <button
-                          type="button"
-                          className="mt-3 w-full inline-flex justify-center cursor-pointer rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1E265F] sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                          onClick={() => setIsAddingPayment(false)}
-                          disabled={isSubmitting}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </form>
+              )}
+              
+              {/* Payment Status */}
+              <div className="mt-6">
+                <h4 className="text-sm font-medium text-gray-700">Payment Status</h4>
+                <div className="mt-2 flex flex-col space-y-1">
+                  <div className="text-sm text-gray-500">
+                    {paymentStatus.paidAdvances} of {paymentStatus.totalAdvances} advances paid
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className={`h-2 rounded-full ${
+                        paymentStatus.paymentPercentage < 33 ? 'bg-red-500' :
+                        paymentStatus.paymentPercentage < 66 ? 'bg-yellow-500' : 'bg-green-500'
+                      }`}
+                      style={{ width: `${paymentStatus.paymentPercentage}%` }}
+                    ></div>
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {paymentStatus.paidAmount.toFixed(2)} / {paymentStatus.totalAmount.toFixed(2)} MAD
                   </div>
                 </div>
               </div>
-            </>
-          )}
+
+              {/* Payment Type Selection */}
+              <div className="mt-6">
+                <h4 className="text-sm font-medium text-gray-700">Payment Type</h4>
+                <div className="mt-2 flex space-x-4">
+                  <button
+                    type="button"
+                    className={`rounded-md px-3 py-2 text-sm font-medium ${
+                      paymentType === 'advance' 
+                        ? 'bg-[#1E265F] text-white' 
+                        : 'bg-white text-gray-700 border border-gray-300'
+                    }`}
+                    onClick={() => handlePaymentTypeChange('advance')}
+                  >
+                    Advance Payment
+                  </button>
+                  <button
+                    type="button"
+                    className={`rounded-md px-3 py-2 text-sm font-medium ${
+                      paymentType === 'full' 
+                        ? 'bg-[#1E265F] text-white' 
+                        : 'bg-white text-gray-700 border border-gray-300'
+                    }`}
+                    onClick={() => handlePaymentTypeChange('full')}
+                  >
+                    Full Payment
+                  </button>
+                </div>
+              </div>
+
+              {/* Advance Selection (only for advance payment) */}
+              {paymentType === 'advance' && (
+                <div className="mt-6">
+                  <h4 className="text-sm font-medium text-gray-700">Select Advance</h4>
+                  <div className="mt-2 grid grid-cols-4 gap-2">
+                    {[1, 2, 3, 4].map((advanceNum) => {
+                      const advance = localPayments.find(p => p.advanceNumber === advanceNum);
+                      const isPaid = advance && advance.paymentDate;
+                      
+                      return (
+                        <button
+                          key={advanceNum}
+                          type="button"
+                          className={`relative rounded-md px-3 py-2 text-sm font-medium ${
+                            selectedAdvance === advanceNum
+                              ? 'bg-[#1E265F] text-white'
+                              : isPaid
+                              ? 'bg-green-100 text-green-800 border border-green-300'
+                              : 'bg-white text-gray-700 border border-gray-300'
+                          }`}
+                          onClick={() => handleAdvanceSelection(advanceNum)}
+                        >
+                          {isPaid && (
+                            <CheckCircleIcon className="h-4 w-4 absolute top-1 right-1 text-green-500" />
+                          )}
+                          Advance {advanceNum}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Payment Form */}
+              <div className="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                <div className="sm:col-span-3">
+                  <label htmlFor="payment-date" className="block text-sm font-medium text-gray-700">
+                    Payment Date
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      type="date"
+                      id="payment-date"
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm"
+                      value={paymentDate}
+                      onChange={(e) => setPaymentDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="sm:col-span-3">
+                  <label htmlFor="payment-amount" className="block text-sm font-medium text-gray-700">
+                    Amount (MAD)
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      type="number"
+                      id="payment-amount"
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm"
+                      value={paymentAmount}
+                      onChange={(e) => setPaymentAmount(e.target.value)}
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                </div>
+
+                <div className="sm:col-span-3">
+                  <label htmlFor="payment-method" className="block text-sm font-medium text-gray-700">
+                    Payment Method
+                  </label>
+                  <div className="mt-1">
+                    <select
+                      id="payment-method"
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm"
+                      value={paymentMethod}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                    >
+                      <option value="cash">Cash</option>
+                      <option value="bank_transfer">Bank Transfer</option>
+                      <option value="check">Check</option>
+                      <option value="card">Card</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="sm:col-span-3">
+                  <label htmlFor="reference" className="block text-sm font-medium text-gray-700">
+                    Reference
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      type="text"
+                      id="reference"
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm"
+                      value={reference}
+                      onChange={(e) => setReference(e.target.value)}
+                      placeholder="Check #, Transaction ID, etc."
+                    />
+                  </div>
+                </div>
+
+                <div className="sm:col-span-6">
+                  <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
+                    Notes
+                  </label>
+                  <div className="mt-1">
+                    <textarea
+                      id="notes"
+                      rows={3}
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm"
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Success/Error Messages */}
+              {success && (
+                <div className="mt-4 bg-green-50 border border-green-200 rounded-md p-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <CheckCircleIcon className="h-5 w-5 text-green-400" aria-hidden="true" />
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm font-medium text-green-800">{success}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {error && (
+                <div className="mt-4 bg-red-50 border border-red-200 rounded-md p-4">
+                  <div className="flex">
+                    <div className="ml-3">
+                      <p className="text-sm font-medium text-red-800">{error}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="mt-8 sm:flex sm:flex-row-reverse">
+            <button
+              type="button"
+              className="inline-flex w-full justify-center rounded-md bg-[#1E265F] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#272F65] sm:ml-3 sm:w-auto"
+              onClick={handleSubmitPayment}
+              disabled={loading}
+            >
+              {loading ? 'Processing...' : 'Save Payment'}
+            </button>
+            <button
+              type="button"
+              className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
+              onClick={onClose}
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
+
