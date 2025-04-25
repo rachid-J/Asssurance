@@ -6,31 +6,19 @@ const clientSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  type: {
+  telephone: {
     type: String,
     required: true,
-    enum: ['A', 'N'], // As per your sheet specification
+    trim: true
   },
-  usage: {
+  numCarte: {
     type: String,
-    required: true
-  },
-  status: {
-    type: String,
-    enum: ['Active', 'Inactive'],
-    default: 'Active'
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
+    required: true,
+    trim: true,
+    unique: true
   }
-});
+}, { timestamps: true });
 
-// Update timestamp on document update
 clientSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
   next();

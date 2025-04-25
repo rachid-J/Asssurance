@@ -11,7 +11,7 @@ const User = require('./models/User');
 const cookieParser = require('cookie-parser');
 const cookie = require('cookie');
 const policyRoutes = require('./routes/policyRoutes');
-
+const clientRoutes = require('./routes/clientRoutes');
 
 // Load environment variables
 dotenv.config();
@@ -78,6 +78,7 @@ app.use((req, res, next) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', UserRoutes);
 app.use('/api/policies', policyRoutes);
+app.use('/api/clients', clientRoutes)
 // Socket.io connection handler
 io.on('connection', (socket) => {
 

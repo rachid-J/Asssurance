@@ -1,9 +1,14 @@
 const Client = require('../models/Client');
 
-// Get all clients
+// Get all clients with search
 exports.getClients = async (req, res) => {
   try {
-    const clients = await Client.find().sort({ createdAt: -1 });
+    const { search } = req.query;
+    const query = search ? { 
+      name: { $regex: search, $options: 'i' } 
+    } : {};
+    
+    const clients = await Client.find(query).sort({ createdAt: -1 });
     res.json(clients);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -14,9 +19,7 @@ exports.getClients = async (req, res) => {
 exports.getClient = async (req, res) => {
   try {
     const client = await Client.findById(req.params.id);
-    if (!client) {
-      return res.status(404).json({ message: 'Client not found' });
-    }
+    if (!client) return res.status(404).json({ message: 'Client not found' });
     res.json(client);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -25,14 +28,13 @@ exports.getClient = async (req, res) => {
 
 // Create client
 exports.createClient = async (req, res) => {
-  const client = new Client({
-    name: req.body.name,
-    type: req.body.type,
-    usage: req.body.usage,
-    status: req.body.status
-  });
-
   try {
+    const client = new Client({
+      name: req.body.name,
+      telephone: req.body.telephone,
+      numCarte: req.body.numCarte
+    });
+
     const newClient = await client.save();
     res.status(201).json(newClient);
   } catch (error) {
@@ -44,11 +46,12 @@ exports.createClient = async (req, res) => {
 exports.updateClient = async (req, res) => {
   try {
     const client = await Client.findById(req.params.id);
-    if (!client) {
-      return res.status(404).json({ message: 'Client not found' });
-    }
+    if (!client) return res.status(404).json({ message: 'Client not found' });
 
-    Object.assign(client, req.body);
+    client.name = req.body.name || client.name;
+    client.telephone = req.body.telephone || client.telephone;
+    client.numCarte = req.body.numCarte || client.numCarte;
+
     const updatedClient = await client.save();
     res.json(updatedClient);
   } catch (error) {
@@ -60,9 +63,7 @@ exports.updateClient = async (req, res) => {
 exports.deleteClient = async (req, res) => {
   try {
     const client = await Client.findById(req.params.id);
-    if (!client) {
-      return res.status(404).json({ message: 'Client not found' });
-    }
+    if (!client) return res.status(404).json({ message: 'Client not found' });
 
     await client.deleteOne();
     res.json({ message: 'Client deleted successfully' });

@@ -39,7 +39,7 @@ const policySchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Indexes
-policySchema.index({ policyNumber: 1 }, { unique: true });
+
 policySchema.index({ startDate: -1 });
 policySchema.index({ clientName: 'text' });
 

@@ -1,6 +1,6 @@
 const Policy = require('../models/Policy');
 const Payment = require('../models/Payment');
-const mongoose = require('mongoose');
+
 
 // Helper function to build search query
 const buildSearchQuery = (searchTerm) => {
@@ -56,14 +56,20 @@ const getPolicies = async (req, res) => {
         const paidAmount = payments
           .filter(p => p.paymentDate)
           .reduce((sum, p) => sum + p.amount, 0);
-        
+    
+        // Calculate based on actual advances or policy total
+        const totalAmount = payments.length > 0 
+          ? payments.reduce((sum, p) => sum + p.amount, 0)
+          : policy.primeTTC;
+    
         return {
           ...policy,
           paymentStatus: {
             totalAdvances: payments.length,
             paidAdvances: payments.filter(p => p.paymentDate).length,
             paidAmount,
-            paymentPercentage: (paidAmount / policy.primeTTC) * 100
+            remainingAmount: totalAmount - paidAmount,
+            paymentPercentage: (paidAmount / totalAmount) * 100 || 0
           }
         };
       })
@@ -76,81 +82,73 @@ const getPolicies = async (req, res) => {
 };
 
 const createPolicy = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  
   try {
-    const { primeTTC, ...policyData } = req.body;
+    const { primeTTC, primeHT, ...policyData } = req.body;
     
-    // Create policy
+    // Validate prime values
+    if (isNaN(primeTTC) || isNaN(primeHT)) {
+      return res.status(400).json({ message: 'Invalid amount values' });
+    }
+
+    // Create policy without any advances
     const policy = new Policy({
       ...policyData,
       primeTTC: parseFloat(primeTTC),
-      primeHT: parseFloat(primeTTC) / 1.2 // Assuming 20% VAT
+      primeHT: parseFloat(primeHT)
     });
     
-    await policy.save({ session });
+    const savedPolicy = await policy.save();
+    res.status(201).json(savedPolicy);
 
-    // Create initial payments (4 advances)
-    const advanceAmount = primeTTC / 4;
-    const payments = Array.from({ length: 4 }, (_, i) => ({
-      policy: policy._id,
-      advanceNumber: i + 1,
-      amount: advanceAmount,
-      paymentDate: null
-    }));
-
-    await Payment.insertMany(payments, { session });
-    
-    await session.commitTransaction();
-    res.status(201).json(policy);
   } catch (error) {
-    await session.abortTransaction();
+    console.error('Policy creation error:', error);
     res.status(400).json({ message: 'Error creating policy', error: error.message });
-  } finally {
-    session.endSession();
   }
 };
 
 const updatePolicy = async (req, res) => {
   try {
-    const policy = await Policy.findByIdAndUpdate(
+    const policy = await Policy.findById(req.params.id);
+    if (!policy) {
+      return res.status(404).json({ message: 'Policy not found' });
+    }
+
+    // Prevent primeTTC modification if advances exist
+    if (req.body.primeTTC) {
+      const payments = await Payment.find({ policy: policy._id });
+      if (payments.length > 0) {
+        return res.status(400).json({ 
+          message: 'Cannot modify policy amount after creating advances'
+        });
+      }
+    }
+
+    const updatedPolicy = await Policy.findByIdAndUpdate(
       req.params.id,
       req.body,
       { new: true, runValidators: true }
     );
     
-    if (!policy) {
-      return res.status(404).json({ message: 'Policy not found' });
-    }
-    
-    res.json(policy);
+    res.json(updatedPolicy);
   } catch (error) {
     res.status(400).json({ message: 'Error updating policy', error: error.message });
   }
 };
 
 const deletePolicy = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  
   try {
-    const policy = await Policy.findByIdAndDelete(req.params.id, { session });
+    const policy = await Policy.findByIdAndDelete(req.params.id);
     
     if (!policy) {
       return res.status(404).json({ message: 'Policy not found' });
     }
 
     // Delete associated payments
-    await Payment.deleteMany({ policy: policy._id }, { session });
+    await Payment.deleteMany({ policy: policy._id });
     
-    await session.commitTransaction();
     res.json({ message: 'Policy deleted successfully' });
   } catch (error) {
-    await session.abortTransaction();
     res.status(500).json({ message: 'Error deleting policy', error: error.message });
-  } finally {
-    session.endSession();
   }
 };
 

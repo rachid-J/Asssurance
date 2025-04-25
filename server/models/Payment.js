@@ -20,7 +20,13 @@ const paymentSchema = new mongoose.Schema({
   amount: {
     type: Number,
     required: true
-  }
+  },
+  paymentMethod: {
+    type: String,
+    enum: ['cash', 'bank_transfer', 'check', 'card']
+  },
+  reference: String,
+  notes: String
 });
 
 // Compound index to ensure unique advances per policy
