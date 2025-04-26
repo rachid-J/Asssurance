@@ -15,32 +15,26 @@ const buildSearchQuery = (searchTerm) => {
 };
 
 // Helper function to build date filter
-const buildDateFilter = (startDate, endDate) => {
-  if (!startDate || !endDate) return {};
-  return {
-    startDate: {
-      $gte: new Date(startDate),
-      $lte: new Date(endDate)
-    }
-  };
-};
+const buildDateFilter = (startDate, endDate) => ({
+  // Directly return comparison operators
+  $gte: new Date(new Date(startDate).setHours(0, 0, 0, 0)),
+  $lte: new Date(new Date(endDate).setHours(23, 59, 59, 999))
+});
 
 const getPolicies = async (req, res) => {
   try {
     const { search, startDate, endDate, period } = req.query;
-    
-    // Build base query
-    let query = buildSearchQuery(search);
-    
-    // Handle period filter
+    let query = {};
+
+    // Build date query correctly
     if (period && period !== 'all') {
       const days = parseInt(period);
       const start = new Date();
       start.setDate(start.getDate() - days);
+      start.setHours(0, 0, 0, 0);
       query.startDate = { $gte: start };
     }
-    
-    // Handle custom date range
+
     if (startDate && endDate) {
       query.startDate = buildDateFilter(startDate, endDate);
     }
@@ -56,20 +50,22 @@ const getPolicies = async (req, res) => {
         const paidAmount = payments
           .filter(p => p.paymentDate)
           .reduce((sum, p) => sum + p.amount, 0);
-    
-        // Calculate based on actual advances or policy total
-        const totalAmount = payments.length > 0 
-          ? payments.reduce((sum, p) => sum + p.amount, 0)
-          : policy.primeTTC;
-    
+
+        // CORRECTED CALCULATION
+        const totalAmount = policy.primeActuel;
+        const remainingAmount = Math.max(totalAmount - paidAmount, 0);
+
         return {
           ...policy,
           paymentStatus: {
-            totalAdvances: payments.length,
+            totalAdvances: Math.max(payments.length, 4), // Default to 4
             paidAdvances: payments.filter(p => p.paymentDate).length,
             paidAmount,
-            remainingAmount: totalAmount - paidAmount,
-            paymentPercentage: (paidAmount / totalAmount) * 100 || 0
+            totalAmount,
+            remainingAmount,
+            paymentPercentage: totalAmount > 0 
+              ? Math.min((paidAmount / totalAmount) * 100, 100)
+              : 0
           }
         };
       })
@@ -83,10 +79,10 @@ const getPolicies = async (req, res) => {
 
 const createPolicy = async (req, res) => {
   try {
-    const { primeTTC, primeHT, ...policyData } = req.body;
+    const { primeTTC, primeHT,primeActuel, ...policyData } = req.body;
     
     // Validate prime values
-    if (isNaN(primeTTC) || isNaN(primeHT)) {
+    if (isNaN(primeTTC) || isNaN(primeHT)||isNaN(primeActuel)) {
       return res.status(400).json({ message: 'Invalid amount values' });
     }
 
@@ -94,7 +90,8 @@ const createPolicy = async (req, res) => {
     const policy = new Policy({
       ...policyData,
       primeTTC: parseFloat(primeTTC),
-      primeHT: parseFloat(primeHT)
+      primeHT: parseFloat(primeHT),
+      primeActuel: parseFloat(primeActuel),
     });
     
     const savedPolicy = await policy.save();
@@ -186,11 +183,80 @@ const getPolicyTotals = async (req, res) => {
     res.status(500).json({ message: 'Error calculating totals', error: error.message });
   }
 };
+const getPolicyById = async (req, res) => {
+  try {
+    const policy = await Policy.findById(req.params.id).lean();
+    
+    if (!policy) {
+      return res.status(404).json({ message: 'Policy not found' });
+    }
+    
+    res.json(policy);
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+};
+const getPolicyStats = async (req, res) => {
+  try {
+    const stats = await Policy.aggregate([
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 },
+          totalPrime: { $sum: '$primeTTC' }
+        }
+      }
+    ]);
+    
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const renewPolicy = async (req, res) => {
+  try {
+    const policy = await Policy.findById(req.params.id);
+    if (!policy) return res.status(404).json({ message: 'Policy not found' });
+    
+    // Implement your renewal logic here
+    const renewedPolicy = await Policy.findByIdAndUpdate(
+      req.params.id,
+      { status: 'Active', endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)) },
+      { new: true }
+    );
+    
+    res.json(renewedPolicy);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const cancelPolicy = async (req, res) => {
+  try {
+    const policy = await Policy.findByIdAndUpdate(
+      req.params.id,
+      { status: 'Canceled' },
+      { new: true }
+    );
+    
+    if (!policy) return res.status(404).json({ message: 'Policy not found' });
+    
+    res.json(policy);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
 module.exports = {
+
   getPolicies,
   createPolicy,
   updatePolicy,
   deletePolicy,
-  getPolicyTotals
+  getPolicyTotals,
+  getPolicyById,
+  getPolicyStats,
+  renewPolicy,
+  cancelPolicy
 };

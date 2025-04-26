@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { createClient } from '../../service/clientService'; // Adjust the import path as necessary
+import { updateClient } from '../../service/clientService';
 
-export const ClientModalCreate = ({ isOpen, onClose, onClientCreated }) => {
+export const ClientModalEdit = ({ isOpen, onClose, client, onClientUpdated }) => {
   const [formData, setFormData] = useState({
     name: '',
     telephone: '',
@@ -12,11 +12,15 @@ export const ClientModalCreate = ({ isOpen, onClose, onClientCreated }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!isOpen) {
-      setFormData({ name: '', telephone: '', numCarte: '' });
+    if (isOpen && client) {
+      setFormData({
+        name: client.name || '',
+        telephone: client.telephone || '',
+        numCarte: client.numCarte || ''
+      });
       setErrors({});
     }
-  }, [isOpen]);
+  }, [isOpen, client]);
 
   const validateField = (name, value) => {
     switch (name) {
@@ -51,11 +55,13 @@ export const ClientModalCreate = ({ isOpen, onClose, onClientCreated }) => {
 
     try {
       setIsSubmitting(true);
-      const newClient = await createClient(formData);
-      onClientCreated(newClient);
+      const updatedClient = await updateClient(client._id, formData);
+      onClientUpdated(updatedClient);
       onClose();
     } catch (error) {
-      setErrors({ submit: error.response?.data?.message || 'Failed to create client' });
+      setErrors({ 
+        submit: error.response?.data?.message || 'Failed to update client' 
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -67,7 +73,7 @@ export const ClientModalCreate = ({ isOpen, onClose, onClientCreated }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
       <div className="bg-white rounded-lg w-full max-w-md p-6 mx-4 shadow-xl">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-900">Create New Client</h2>
+          <h2 className="text-xl font-semibold text-gray-900">Edit Client</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-500"
@@ -145,7 +151,7 @@ export const ClientModalCreate = ({ isOpen, onClose, onClientCreated }) => {
               disabled={isSubmitting}
               className="px-4 py-2 text-sm font-medium text-white bg-[#1E265F] hover:bg-[#272F65] rounded-md disabled:opacity-50"
             >
-              {isSubmitting ? 'Creating...' : 'Create Client'}
+              {isSubmitting ? 'Updating...' : 'Update Client'}
             </button>
           </div>
         </form>

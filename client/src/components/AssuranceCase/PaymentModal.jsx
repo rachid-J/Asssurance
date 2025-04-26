@@ -7,7 +7,6 @@ export default function PaymentModal({ isOpen, onClose, policy, payments, onPaym
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-  const [paymentType, setPaymentType] = useState('advance'); // 'advance' or 'full'
   const [selectedAdvance, setSelectedAdvance] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
@@ -15,6 +14,11 @@ export default function PaymentModal({ isOpen, onClose, policy, payments, onPaym
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
   const modalRef = useRef(null);
+
+  // Get the total policy amount (using primeActuel if available, otherwise primeTTC)
+  const getTotalPolicyAmount = () => {
+    return policy?.primeActuel || policy?.primeTTC || 0;
+  };
 
   // Close when clicking outside the modal
   useEffect(() => {
@@ -54,36 +58,39 @@ export default function PaymentModal({ isOpen, onClose, policy, payments, onPaym
   // Initialize payments when modal opens
   useEffect(() => {
     if (isOpen && policy) {
+      // Get the total amount to be used for payments
+      const totalAmount = getTotalPolicyAmount();
+      
       // If payments are provided, use them
       if (payments && payments.length > 0) {
         setLocalPayments(payments);
+        
+        // Find first unpaid advance to select by default
+        const firstUnpaidAdvance = payments.find(p => !p.paymentDate);
+        if (firstUnpaidAdvance) {
+          handleAdvanceSelection(firstUnpaidAdvance.advanceNumber);
+        } else {
+          // All advances are paid, select the first one
+          handleAdvanceSelection(payments[0].advanceNumber);
+        }
       } else {
         // Otherwise create 4 default advances
         const defaultAdvances = [1, 2, 3, 4].map(num => ({
           advanceNumber: num,
           paymentDate: null,
-          amount: policy.primeTTC / 4, // Split into 4 equal payments by default
+          amount: totalAmount / 4, // Split into 4 equal payments by default
           paymentMethod: null,
           reference: '',
           notes: ''
         }));
         setLocalPayments(defaultAdvances);
+        
+        // Set default payment amount based on total divided by 4
+        setPaymentAmount((totalAmount / 4).toFixed(2));
+        handleAdvanceSelection(1);
       }
-
-      // Set default payment amount based on policy
-      setPaymentAmount((policy.primeTTC / 4).toFixed(2));
     }
   }, [isOpen, policy, payments]);
-
-  // Handle payment type change
-  const handlePaymentTypeChange = (type) => {
-    setPaymentType(type);
-    if (type === 'full') {
-      setPaymentAmount(policy?.primeTTC.toFixed(2) || 0);
-    } else {
-      setPaymentAmount((policy?.primeTTC / 4).toFixed(2) || 0);
-    }
-  };
 
   // Handle advance selection
   const handleAdvanceSelection = (advanceNumber) => {
@@ -102,74 +109,65 @@ export default function PaymentModal({ isOpen, onClose, policy, payments, onPaym
     }
   };
 
+  // Check if an advance is already paid
+  const isAdvancePaid = (advanceNumber) => {
+    const advance = localPayments.find(p => p.advanceNumber === advanceNumber);
+    return advance && advance.paymentDate;
+  };
+
   // Handle payment submission
   const handleSubmitPayment = async () => {
     try {
+      // Prevent submitting payment for already paid advance
+      if (isAdvancePaid(selectedAdvance)) {
+        setError(`Advance ${selectedAdvance} has already been paid. Please select another advance.`);
+        return;
+      }
+      
       setLoading(true);
       setError(null);
       
-      let paymentData;
-      
-      if (paymentType === 'full') {
-        // Use completeAllPayments endpoint for full payment
-        paymentData = {
-          paymentDate,
-          paymentMethod,
-          reference,
-          notes: notes + ' (Full payment)',
-          totalAmount: remainingAmount
-        };
-        
-        await completeAllPayments(policy._id, paymentData);
-        
-        // Update local state
-        const updatedPayments = localPayments.map(payment => ({
-          ...payment,
-          paymentDate: paymentData.paymentDate,
-          paymentMethod: paymentData.paymentMethod,
-          reference: paymentData.reference,
-          amount: payment.advanceNumber === 1 ? remainingAmount : 0,
-          notes: payment.advanceNumber === 1 ? paymentData.notes : 'Covered by full payment'
-        }));
-        
-        setLocalPayments(updatedPayments);
+      // Advance payment
+      const paymentData = {
+        advanceNumber: selectedAdvance,
+        paymentDate,
+        amount: parseFloat(paymentAmount),
+        paymentMethod,
+        reference,
+        notes
+      };
+
+      // Check for existing payment record (to update)
+      const existingPayment = localPayments.find(p => 
+        p.advanceNumber === selectedAdvance && p._id
+      );
+
+      if (existingPayment) {
+        // Handle update if you have an updatePayment function
+        // await updatePayment(existingPayment._id, paymentData);
+        console.log("Would update existing payment:", existingPayment._id);
       } else {
-        // Advance payment
-        paymentData = {
-          advanceNumber: selectedAdvance,
-          paymentDate,
-          amount: parseFloat(paymentAmount),
-          paymentMethod,
-          reference,
-          notes
-        };
-  
-        // Check for existing payment
-        const existingPayment = localPayments.find(p => 
-          p.advanceNumber === selectedAdvance && p._id
-        );
-  
-        if (existingPayment) {
-          // await updatePayment(existingPayment._id, paymentData);
-        } else {
-          await createPayment(policy._id, paymentData); // Fixed parameter order
-        }
-  
-        // Update local state
-        const updatedPayments = localPayments.map(p => 
-          p.advanceNumber === selectedAdvance ? 
-          { ...p, ...paymentData } : p
-        );
-        setLocalPayments(updatedPayments);
-      
-      
+        await createPayment(policy._id, paymentData);
       }
+
+      // Update local state
+      const updatedPayments = localPayments.map(p => 
+        p.advanceNumber === selectedAdvance ? 
+        { ...p, ...paymentData } : p
+      );
+      setLocalPayments(updatedPayments);
       
-      setSuccess(`Payment ${paymentType === 'full' ? 'in full' : `for advance ${selectedAdvance}`} recorded successfully!`);
+      setSuccess(`Payment for advance ${selectedAdvance} recorded successfully!`);
       
       // Notify parent component
       if (onPaymentUpdated) {
         onPaymentUpdated();
+      }
+      
+      // Find next unpaid advance to select
+      const nextUnpaid = updatedPayments.find(p => !p.paymentDate && p.advanceNumber !== selectedAdvance);
+      if (nextUnpaid) {
+        handleAdvanceSelection(nextUnpaid.advanceNumber);
       }
       
       // Reset form after success
@@ -188,22 +186,56 @@ export default function PaymentModal({ isOpen, onClose, policy, payments, onPaym
   // Calculate payment status
   const getPaymentStatus = () => {
     const paidAdvances = localPayments.filter(payment => payment.paymentDate).length;
-    const totalAdvances = localPayments.length;
+    const totalAmount = getTotalPolicyAmount();
     const paidAmount = localPayments
       .filter(payment => payment.paymentDate)
       .reduce((sum, payment) => sum + payment.amount, 0);
-    const totalAmount = policy?.primeTTC || 0;
+    
+    // Check how many advances are needed based on current paid amount
+    let requiredAdvances = 4; // Default number of advances
+    
+    if (paidAmount >= totalAmount) {
+      // If already fully paid, calculate how many advances were used
+      const advancesWithPayments = localPayments.filter(payment => payment.paymentDate);
+      requiredAdvances = advancesWithPayments.length;
+    } else {
+      // Calculate remaining advances needed based on unpaid amount
+      const remainingAmount = totalAmount - paidAmount;
+      const advanceAmount = totalAmount / 4;
+      const remainingAdvances = Math.ceil(remainingAmount / advanceAmount);
+      requiredAdvances = paidAdvances + remainingAdvances;
+      // Ensure at least 1 advance and max 4 advances
+      requiredAdvances = Math.max(1, Math.min(4, requiredAdvances));
+    }
     
     return {
       paidAdvances,
-      totalAdvances,
+      totalAdvances: Math.max(paidAdvances, requiredAdvances),
       paidAmount,
       totalAmount,
-      paymentPercentage: totalAmount > 0 ? (paidAmount / totalAmount) * 100 : 0
+      paymentPercentage: totalAmount > 0 ? (paidAmount / totalAmount) * 100 : 0,
+      requiredAdvances,
+      isFullyPaid: paidAmount >= totalAmount
     };
   };
 
   const paymentStatus = getPaymentStatus();
+  
+  // Get visible advances - if payment is full, show only necessary advances
+  const getVisibleAdvances = () => {
+    // If policy is already fully paid, show only the advances used
+    if (paymentStatus.paidAmount >= paymentStatus.totalAmount) {
+      return localPayments
+        .filter(payment => payment.paymentDate)
+        .map(payment => payment.advanceNumber);
+    }
+
+    // If not fully paid, calculate how many advances are needed
+    const visibleAdvanceCount = paymentStatus.requiredAdvances;
+    return Array.from({ length: visibleAdvanceCount }, (_, i) => i + 1);
+  };
+
+  const visibleAdvances = getVisibleAdvances();
 
   if (!isOpen) return null;
 
@@ -213,11 +245,11 @@ export default function PaymentModal({ isOpen, onClose, policy, payments, onPaym
       <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
       
       {/* Modal container */}
-      <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+      <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
         {/* Modal panel */}
         <div 
           ref={modalRef}
-          className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6"
+          className="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-5xl"
           style={{
             animation: 'fadeIn 0.3s ease-out',
           }}
@@ -233,143 +265,160 @@ export default function PaymentModal({ isOpen, onClose, policy, payments, onPaym
             </button>
           </div>
           
-          <div className="sm:flex sm:items-start">
-            <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
-              <h3 className="text-xl font-semibold leading-6 text-gray-900" id="modal-title">
-                Payment Details
+          <div className="grid grid-cols-1 md:grid-cols-2">
+            {/* Left side - Policy Information */}
+            <div className="bg-gray-50 p-6 border-r border-gray-200">
+              <h3 className="text-xl font-semibold leading-6 text-gray-900 mb-6">
+                Policy Details
               </h3>
               
               {policy && (
-                <div className="mt-4 bg-gray-50 p-4 rounded-md">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-500">Client</h4>
-                      <p className="text-base font-medium text-gray-900">{policy.clientName}</p>
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-500">Policy Number</h4>
-                      <p className="text-base font-medium text-gray-900">{policy.policyNumber}</p>
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-500">Total Amount</h4>
-                      <p className="text-base font-medium text-gray-900">{policy.primeTTC?.toFixed(2)} MAD</p>
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-500">Start Date</h4>
-                      <p className="text-base font-medium text-gray-900">
-                        {new Date(policy.startDate).toLocaleDateString()}
-                      </p>
-                    </div>
+                <div className="space-y-6">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500">Client</h4>
+                    <p className="text-base font-medium text-gray-900">{policy.clientName}</p>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500">Policy Number</h4>
+                    <p className="text-base font-medium text-gray-900">{policy.policyNumber}</p>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500">Total Amount</h4>
+                    <p className="text-base font-medium text-gray-900">{getTotalPolicyAmount().toFixed(2)} MAD</p>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500">Start Date</h4>
+                    <p className="text-base font-medium text-gray-900">
+                      {new Date(policy.startDate).toLocaleDateString()}
+                    </p>
                   </div>
                 </div>
               )}
               
               {/* Payment Status */}
-              <div className="mt-6">
-                <h4 className="text-sm font-medium text-gray-700">Payment Status</h4>
-                <div className="mt-2 flex flex-col space-y-1">
-                  <div className="text-sm text-gray-500">
-                    {paymentStatus.paidAdvances} of {paymentStatus.totalAdvances} advances paid
+              <div className="mt-8">
+                <h4 className="text-md font-semibold text-gray-700 mb-4">Payment Status</h4>
+                <div className="space-y-3">
+                  <div className="text-sm text-gray-700 font-medium">
+                    {paymentStatus.paidAdvances} of {paymentStatus.requiredAdvances} advances paid
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="w-full bg-gray-200 rounded-full h-2.5">
                     <div
-                      className={`h-2 rounded-full ${
+                      className={`h-2.5 rounded-full ${
                         paymentStatus.paymentPercentage < 33 ? 'bg-red-500' :
                         paymentStatus.paymentPercentage < 66 ? 'bg-yellow-500' : 'bg-green-500'
                       }`}
-                      style={{ width: `${paymentStatus.paymentPercentage}%` }}
+                      style={{ width: `${Math.min(100, paymentStatus.paymentPercentage)}%` }}
                     ></div>
                   </div>
-                  <div className="text-sm text-gray-500">
-                    {paymentStatus.paidAmount.toFixed(2)} / {paymentStatus.totalAmount.toFixed(2)} MAD
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-700 font-medium">
+                      {paymentStatus.paidAmount.toFixed(2)} MAD paid
+                    </span>
+                    <span className="text-gray-500">
+                      of {paymentStatus.totalAmount.toFixed(2)} MAD
+                    </span>
                   </div>
                 </div>
               </div>
-
-              {/* Payment Type Selection */}
-              <div className="mt-6">
-                <h4 className="text-sm font-medium text-gray-700">Payment Type</h4>
-                <div className="mt-2 flex space-x-4">
-                  <button
-                    type="button"
-                    className={`rounded-md px-3 py-2 text-sm font-medium ${
-                      paymentType === 'advance' 
-                        ? 'bg-[#1E265F] text-white' 
-                        : 'bg-white text-gray-700 border border-gray-300'
-                    }`}
-                    onClick={() => handlePaymentTypeChange('advance')}
-                  >
-                    Advance Payment
-                  </button>
-                  <button
-                    type="button"
-                    className={`rounded-md px-3 py-2 text-sm font-medium ${
-                      paymentType === 'full' 
-                        ? 'bg-[#1E265F] text-white' 
-                        : 'bg-white text-gray-700 border border-gray-300'
-                    }`}
-                    onClick={() => handlePaymentTypeChange('full')}
-                  >
-                    Full Payment
-                  </button>
+              
+              {/* Payment History - Only show visible advances */}
+              <div className="mt-8">
+                <h4 className="text-md font-semibold text-gray-700 mb-4">Payment History</h4>
+                <div className="space-y-2">
+                  {localPayments
+                    .filter(payment => visibleAdvances.includes(payment.advanceNumber))
+                    .map((payment, index) => (
+                      <div 
+                        key={index} 
+                        className={`p-3 rounded-md border ${payment.paymentDate 
+                          ? 'bg-green-50 border-green-200' 
+                          : 'bg-gray-100 border-gray-200'}`}
+                      >
+                        <div className="flex justify-between">
+                          <span className="font-medium">Advance {payment.advanceNumber}</span>
+                          <span className={payment.paymentDate ? 'text-green-700' : 'text-gray-500'}>
+                            {payment.paymentDate 
+                              ? new Date(payment.paymentDate).toLocaleDateString() 
+                              : 'Pending'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between mt-1">
+                          <span className="text-sm text-gray-600">
+                            {payment.paymentMethod ? payment.paymentMethod.replace('_', ' ').toUpperCase() : '-'}
+                          </span>
+                          <span className="font-medium">
+                            {payment.amount?.toFixed(2)} MAD
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  }
                 </div>
               </div>
-
-              {/* Advance Selection (only for advance payment) */}
-              {paymentType === 'advance' && (
-                <div className="mt-6">
-                  <h4 className="text-sm font-medium text-gray-700">Select Advance</h4>
-                  <div className="mt-2 grid grid-cols-4 gap-2">
-                    {[1, 2, 3, 4].map((advanceNum) => {
-                      const advance = localPayments.find(p => p.advanceNumber === advanceNum);
-                      const isPaid = advance && advance.paymentDate;
-                      
-                      return (
-                        <button
-                          key={advanceNum}
-                          type="button"
-                          className={`relative rounded-md px-3 py-2 text-sm font-medium ${
-                            selectedAdvance === advanceNum
-                              ? 'bg-[#1E265F] text-white'
-                              : isPaid
+            </div>
+            
+            {/* Right side - Payment Form */}
+            <div className="p-6">
+              <h3 className="text-xl font-semibold leading-6 text-gray-900 mb-6">
+                Record Payment
+              </h3>
+              
+              {/* Advance Selection - Only show visible advances */}
+              <div className="mb-6">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Select Advance</h4>
+                <div className="grid grid-cols-4 gap-2">
+                  {visibleAdvances.map((advanceNum) => {
+                    const advance = localPayments.find(p => p.advanceNumber === advanceNum);
+                    const isPaid = advance && advance.paymentDate;
+                    
+                    return (
+                      <button
+                        key={advanceNum}
+                        type="button"
+                        className={`relative rounded-md px-3 py-2 text-sm font-medium ${
+                          selectedAdvance === advanceNum
+                            ? isPaid 
                               ? 'bg-green-100 text-green-800 border border-green-300'
-                              : 'bg-white text-gray-700 border border-gray-300'
-                          }`}
-                          onClick={() => handleAdvanceSelection(advanceNum)}
-                        >
-                          {isPaid && (
-                            <CheckCircleIcon className="h-4 w-4 absolute top-1 right-1 text-green-500" />
-                          )}
-                          Advance {advanceNum}
-                        </button>
-                      );
-                    })}
-                  </div>
+                              : 'bg-[#1E265F] text-white'
+                            : isPaid
+                            ? 'bg-green-100 text-green-800 border border-green-300'
+                            : 'bg-white text-gray-700 border border-gray-300'
+                        }`}
+                        onClick={() => handleAdvanceSelection(advanceNum)}
+                        disabled={isPaid}
+                      >
+                        {isPaid && (
+                          <CheckCircleIcon className="h-4 w-4 absolute top-1 right-1 text-green-500" />
+                        )}
+                        Advance {advanceNum}
+                      </button>
+                    );
+                  })}
                 </div>
-              )}
+              </div>
 
               {/* Payment Form */}
-              <div className="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-                <div className="sm:col-span-3">
-                  <label htmlFor="payment-date" className="block text-sm font-medium text-gray-700">
-                    Payment Date
-                  </label>
-                  <div className="mt-1">
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="payment-date" className="block text-sm font-medium text-gray-700 mb-1">
+                      Payment Date
+                    </label>
                     <input
                       type="date"
                       id="payment-date"
                       className="block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm"
                       value={paymentDate}
                       onChange={(e) => setPaymentDate(e.target.value)}
+                      disabled={isAdvancePaid(selectedAdvance)}
                     />
                   </div>
-                </div>
 
-                <div className="sm:col-span-3">
-                  <label htmlFor="payment-amount" className="block text-sm font-medium text-gray-700">
-                    Amount (MAD)
-                  </label>
-                  <div className="mt-1">
+                  <div>
+                    <label htmlFor="payment-amount" className="block text-sm font-medium text-gray-700 mb-1">
+                      Amount (MAD)
+                    </label>
                     <input
                       type="number"
                       id="payment-amount"
@@ -378,20 +427,22 @@ export default function PaymentModal({ isOpen, onClose, policy, payments, onPaym
                       onChange={(e) => setPaymentAmount(e.target.value)}
                       min="0"
                       step="0.01"
+                      disabled={isAdvancePaid(selectedAdvance)}
                     />
                   </div>
                 </div>
 
-                <div className="sm:col-span-3">
-                  <label htmlFor="payment-method" className="block text-sm font-medium text-gray-700">
-                    Payment Method
-                  </label>
-                  <div className="mt-1">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="payment-method" className="block text-sm font-medium text-gray-700 mb-1">
+                      Payment Method
+                    </label>
                     <select
                       id="payment-method"
                       className="block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm"
                       value={paymentMethod}
                       onChange={(e) => setPaymentMethod(e.target.value)}
+                      disabled={isAdvancePaid(selectedAdvance)}
                     >
                       <option value="cash">Cash</option>
                       <option value="bank_transfer">Bank Transfer</option>
@@ -399,13 +450,11 @@ export default function PaymentModal({ isOpen, onClose, policy, payments, onPaym
                       <option value="card">Card</option>
                     </select>
                   </div>
-                </div>
 
-                <div className="sm:col-span-3">
-                  <label htmlFor="reference" className="block text-sm font-medium text-gray-700">
-                    Reference
-                  </label>
-                  <div className="mt-1">
+                  <div>
+                    <label htmlFor="reference" className="block text-sm font-medium text-gray-700 mb-1">
+                      Reference
+                    </label>
                     <input
                       type="text"
                       id="reference"
@@ -413,23 +462,23 @@ export default function PaymentModal({ isOpen, onClose, policy, payments, onPaym
                       value={reference}
                       onChange={(e) => setReference(e.target.value)}
                       placeholder="Check #, Transaction ID, etc."
+                      disabled={isAdvancePaid(selectedAdvance)}
                     />
                   </div>
                 </div>
 
-                <div className="sm:col-span-6">
-                  <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
+                <div>
+                  <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
                     Notes
                   </label>
-                  <div className="mt-1">
-                    <textarea
-                      id="notes"
-                      rows={3}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm"
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                    />
-                  </div>
+                  <textarea
+                    id="notes"
+                    rows={3}
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    disabled={isAdvancePaid(selectedAdvance)}
+                  />
                 </div>
               </div>
 
@@ -456,29 +505,45 @@ export default function PaymentModal({ isOpen, onClose, policy, payments, onPaym
                   </div>
                 </div>
               )}
+              
+              {/* Payment status message - when fully paid */}
+              {paymentStatus.isFullyPaid && (
+                <div className="mt-4 bg-green-50 border border-green-200 rounded-md p-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <CheckCircleIcon className="h-5 w-5 text-green-400" aria-hidden="true" />
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm font-medium text-green-800">
+                        Policy is fully paid in {paymentStatus.paidAdvances} {paymentStatus.paidAdvances === 1 ? 'advance' : 'advances'}.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Action Buttons */}
+              <div className="mt-8 flex justify-end space-x-3">
+                <button
+                  type="button"
+                  className="inline-flex justify-center rounded-md bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                  onClick={onClose}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex justify-center rounded-md bg-[#1E265F] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#272F65] disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  onClick={handleSubmitPayment}
+                  disabled={loading || paymentStatus.isFullyPaid || isAdvancePaid(selectedAdvance)}
+                >
+                  {loading ? 'Processing...' : isAdvancePaid(selectedAdvance) ? 'Already Paid' : 'Save Payment'}
+                </button>
+              </div>
             </div>
-          </div>
-          
-          <div className="mt-8 sm:flex sm:flex-row-reverse">
-            <button
-              type="button"
-              className="inline-flex w-full justify-center rounded-md bg-[#1E265F] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#272F65] sm:ml-3 sm:w-auto"
-              onClick={handleSubmitPayment}
-              disabled={loading}
-            >
-              {loading ? 'Processing...' : 'Save Payment'}
-            </button>
-            <button
-              type="button"
-              className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
-              onClick={onClose}
-            >
-              Cancel
-            </button>
           </div>
         </div>
       </div>
     </div>
   );
 }
-

@@ -3,6 +3,8 @@ import { Auth } from './Auth/Auth';
 import Dashboard from './components/Dashboard/Dashboard';
 import Layout from './components/Common/Layout';
 import ClientList from './components/ClientManagement/ClientList';
+import { ClientPolicy } from './components/ClientManagement/ClientPolicy';
+import { ClientDashboard } from './components/ClientManagement/ClientDashboard';
 import AssuranceList from './components/AssuranceCase/AssuranceList';
 import PaymentsList from './components/Payments/PaymentsList';
 import DocumentsList from './components/Documents/DocumentsList';
@@ -11,7 +13,7 @@ import { MainLayout } from './Layouts/MainLayout';
 import { UserManagement } from './components/Users/UserManagement';
 import { useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
-import Notification from './shared/Notification';
+import Notification from './shared/Notification'git stat
 
 function App() {
   const [serverStatus, setServerStatus] = useState(null);
@@ -62,8 +64,16 @@ function App() {
         <Route path="/" element={<MainLayout />}>
           <Route path="/" element={<Layout />}>
             <Route index element={<Dashboard />} />
-            <Route path="clients" element={<ClientList />} />
+            
+            {/* Client Routes */}
+            <Route path="clients">
+              <Route index element={<ClientList />} />
+              <Route path="dashboard" element={<ClientDashboard />} />
+              <Route path=":id/policies" element={<ClientPolicy />} />
+            </Route>
+            
             <Route path="assurance-cases" element={<AssuranceList />} />
+            <Route path="assurance-cases/:policyId" element={<PolicyListPage />} />
             <Route path="payments" element={<PaymentsList />} />
             <Route path="documents" element={<DocumentsList />} />
             <Route path="user-management" element={<UserManagement />} />

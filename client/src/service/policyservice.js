@@ -109,3 +109,13 @@ export const getPolicyPayments = async (policyId) => {
       throw new Error(error.response?.data?.message || 'Full payment failed');
     }
   };
+
+  export const getPolicyById = async (policyId) => {
+    try {
+      const response = await axiosClient.get(`/policies/${policyId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching policy details:', error);
+      throw error;
+    }
+}
