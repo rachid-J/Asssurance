@@ -74,9 +74,10 @@ export default function AssuranceList() {
   
       const [policiesData, totalsData] = await Promise.all([
         getPolicies(params),
+       
         getPolicyTotals(params)
       ]);
-      
+      console.log("ha walik",policiesData),
       setData(prev => ({
         ...prev,
         policies: policiesData,
@@ -154,16 +155,6 @@ export default function AssuranceList() {
           <p className="mt-2 text-sm text-gray-600">
             Manage and review all insurance policies
           </p>
-        </div>
-        <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
-          <button
-            type="button"
-            className="inline-flex items-center justify-center rounded-md bg-[#1E265F] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-[#272F65] focus:outline-none focus:ring-2 focus:ring-[#1E265F] focus:ring-offset-2"
-            onClick={() => navigate('/policies/new')}
-          >
-            <PlusIcon className="h-5 w-5 mr-2" />
-            New Policy
-          </button>
         </div>
       </div>
 

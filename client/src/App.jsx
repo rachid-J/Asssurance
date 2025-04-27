@@ -15,6 +15,10 @@ import Notification from './shared/Notification';
 import PolicyListPage from './components/AssuranceCase/PolicyDetailPage';
 import { ClientDetailsView } from './components/ClientManagement/ClientDetailsView';
 import { ClientCreateForm } from './components/ClientManagement/ClientCreateForm';
+import { VehicleAddPage } from './components/ClientManagement/components/vehicules/VehicleAddPage';
+import { NewPolicyForm } from './components/AssuranceCase/NewPolicyForm';
+import VehicleDocumentsPage from './components/ClientManagement/components/vehicules/VehicleDocumentsPage';
+import AddDocumentPage from './components/ClientManagement/components/vehicules/AddDocumentPage';
 
 function App() {
   const [serverStatus, setServerStatus] = useState(null);
@@ -67,6 +71,12 @@ function App() {
             <Route index element={<Dashboard />} />
             <Route path="clients" element={<ClientList />} />
             <Route path="clients/:id" element={<ClientDetailsView />} />
+            <Route path="clients/:id/edit" element={<ClientCreateForm />} />
+            <Route path="vehicles/new" element={<VehicleAddPage />} />
+            <Route path="/clients/:clientId/vehicles" element={<NewPolicyForm />} />
+            <Route path="/clients/:clientId/vehicles/:vehicleId/documents" element={<VehicleDocumentsPage />} />
+        <Route path="/clients/:clientId/vehicles/:vehicleId/documents/add" element={<AddDocumentPage />} />
+            <Route path="/clients/:clientId/policies/new" element={<NewPolicyForm />} />
             <Route path="clients/new" element={<ClientCreateForm />} />
             <Route path="assurance-cases" element={<AssuranceList />} />
             <Route path="assurance-cases/:policyId" element={<PolicyListPage />} />

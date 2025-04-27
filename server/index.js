@@ -13,6 +13,7 @@ const cookie = require('cookie');
 const policyRoutes = require('./routes/policyRoutes');
 const clientRoutes = require('./routes/clientRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
+const vehicleRoutes = require('./routes/vehiclesRoutes');
 // Load environment variables
 dotenv.config();
 
@@ -79,6 +80,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', UserRoutes);
 app.use('/api/policies', policyRoutes);
 app.use('/api/clients', clientRoutes)
+app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/payments', paymentRoutes);
 // Socket.io connection handler
 io.on('connection', (socket) => {

@@ -10,7 +10,7 @@ const connectDB = async () => {
      await initAdmin();
      await initClient();
      await initVehicle();
-     await initPolicy();// Initialize admin user
+    
 
     console.log('✅ MongoDB connected');
   } catch (error) {

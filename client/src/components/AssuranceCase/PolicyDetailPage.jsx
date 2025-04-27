@@ -188,8 +188,11 @@ export default function PolicyDetailPage() {
             <ArrowLeftIcon className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">{policy.clientName}</h1>
-            <p className="text-sm text-gray-600">Policy #{policy.policyNumber}</p>
+            <h1 className="text-2xl font-bold text-gray-900">{policy.clientName || 'Loading...'}</h1>
+            <p className="text-sm text-gray-600">
+              Policy #{policy.policyNumber} • {policy.vehicleInfo}
+            </p>
+
           </div>
         </div>
         <div className="flex space-x-3">
@@ -312,7 +315,7 @@ export default function PolicyDetailPage() {
                 <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
                   <div
                     className={`h-2.5 rounded-full ${paymentStatus.paymentPercentage < 33 ? 'bg-red-600' :
-                        paymentStatus.paymentPercentage < 66 ? 'bg-yellow-500' : 'bg-green-600'
+                      paymentStatus.paymentPercentage < 66 ? 'bg-yellow-500' : 'bg-green-600'
                       }`}
                     style={{ width: `${paymentStatus.paymentPercentage}%` }}
                   />

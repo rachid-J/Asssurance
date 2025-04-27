@@ -9,6 +9,7 @@ const clientSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Policy'
   }],
+ 
   // Basic Information
   title: {
     type: String,

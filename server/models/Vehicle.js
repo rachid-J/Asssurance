@@ -1,12 +1,62 @@
 const mongoose = require('mongoose');
 
+// Define Document Schema
+const documentSchema = new mongoose.Schema({
+  type: {
+    type: String,
+    enum: ['Registration', 'Technical Inspection', 'Insurance', 'Other'],
+    required: true
+  },
+  title: {
+    type: String,
+    required: true
+  },
+  file: {
+    path: {
+      type: String,
+      required: true
+    },
+    originalName: {
+      type: String,
+      required: true
+    },
+    mimeType: {
+      type: String,
+      required: true
+    },
+    size: {
+      type: Number,
+      required: true
+    }
+  },
+  issueDate: {
+    type: Date,
+    required: true
+  },
+  expiryDate: {
+    type: Date,
+    required: true
+  },
+  issuingAuthority: {
+    type: String
+  },
+  notes: {
+    type: String
+  }
+}, { _id: true });
+
+// Define Vehicle Schema
 const vehicleSchema = new mongoose.Schema({
   clientId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Client',
     required: true
   },
-  
+  policyId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Policy'
+  },
+
   // Vehicle Information
   make: {
     type: String,
@@ -32,7 +82,7 @@ const vehicleSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
-  
+
   // Vehicle Details
   vehicleType: {
     type: String,
@@ -49,10 +99,10 @@ const vehicleSchema = new mongoose.Schema({
     enum: ['Personal', 'Professional', 'Commercial', 'Mixed'],
     default: 'Personal'
   },
-  
+
   // Technical Information
   engineSize: {
-    type: Number,  // in cc
+    type: Number, // in cc
     min: 0
   },
   horsePower: {
@@ -64,34 +114,13 @@ const vehicleSchema = new mongoose.Schema({
     min: 0
   },
   weight: {
-    type: Number,  // in kg
+    type: Number, // in kg
     min: 0
   },
-  
+
   // Documents
-  documents: [{
-    type: {
-      type: String,
-      enum: ['Registration', 'Technical Inspection', 'Insurance', 'Other'],
-      required: true
-    },
-    number: {
-      type: String,
-      required: true
-    },
-    issueDate: {
-      type: Date,
-      required: true
-    },
-    expiryDate: {
-      type: Date,
-      required: true
-    },
-    issuingAuthority: {
-      type: String
-    }
-  }],
-  
+  documents: [documentSchema],
+
   // System fields
   active: {
     type: Boolean,
@@ -106,4 +135,5 @@ vehicleSchema.index({ make: 'text', model: 'text', registrationNumber: 'text' })
 vehicleSchema.index({ clientId: 1 });
 vehicleSchema.index({ registrationNumber: 1 });
 
+// Export Vehicle model
 module.exports = mongoose.model('Vehicle', vehicleSchema);

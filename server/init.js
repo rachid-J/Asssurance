@@ -94,51 +94,12 @@ const initVehicle = async () => {
   }
 };
 // Initialize Sample Policy
-const initPolicy = async () => {
-  try {
-    const client = await Client.findOne({ email: 'john.doe@example.com' });
-    
-    if (client) {
-      const samplePolicy = {
-        policyNumber: 'POL-001',
-        clientId: client._id.toString(), // Store as string per your schema
-        clientName: `${client.firstName} ${client.name}`,
-        client: client._id, // ObjectId reference
-        insuranceType: 'Comprehensive',
-        usage: 'Personal',
-        primeHT: 5000,
-        primeTTC: 5500,
-        primeActuel: 5450,
-        startDate: new Date(),
-        endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
-        comment: 'Sample policy for testing'
-      };
 
-      const existingPolicy = await Policy.findOne({ 
-        policyNumber: samplePolicy.policyNumber 
-      });
-      
-      if (!existingPolicy) {
-        const newPolicy = await Policy.create(samplePolicy);
-        
-        // Add policy to client's policies array
-        await Client.findByIdAndUpdate(
-          client._id,
-          { $push: { policies: newPolicy._id } }
-        );
-        
-        console.log('✅ Sample policy initialized');
-      }
-    }
-  } catch (error) {
-    console.error('Policy initialization error:', error.message);
-  }
-};
 // Main initialization function
 
 module.exports = {
   initAdmin,
   initClient,
   initVehicle,
-  initPolicy
+
 };

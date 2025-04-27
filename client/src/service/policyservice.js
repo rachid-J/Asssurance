@@ -11,28 +11,17 @@ export const getPolicies = async (searchParams = {}) => {
     throw error;
   }
 };
-
+// service/policyservice.js
 export const createPolicy = async (policyData) => {
-  try {
-    // Ensure numeric values are properly parsed
-    const formattedData = {
-      ...policyData,
-      primeHT: parseFloat(policyData.primeHT),
-      primeTTC: parseFloat(policyData.primeTTC)
-    };
-    
-    const response = await axiosClient.post('/policies', formattedData);
-    return response.data;
-  } catch (error) {
-    console.error('Error creating policy:', error);
-    // Re-throw with more consistent error structure
-    if (error.response && error.response.data) {
-      throw { ...error, message: error.response.data.message || 'Failed to create policy' };
+    try {
+      const response = await axiosClient.post('/policies', policyData); // Send policyData directly
+      return response.data;
+    } catch (error) {
+      console.error('Error creating policy:', error);
+      const errorMessage = error.response?.data?.message || error.message;
+      throw new Error(errorMessage);
     }
-    throw error;
-  }
-};
-
+  };
 export const updatePolicy = async (id, policyData) => {
   try {
     const response = await axiosClient.put(`/policies/${id}`, policyData);

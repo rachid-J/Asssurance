@@ -44,7 +44,8 @@ exports.getVehicles = async (req, res) => {
       .sort({ [sortBy]: sortDirection })
       .skip(skip)
       .limit(parseInt(limit))
-      .populate('clientId', 'name firstName telephone'); // Populate basic client info
+      .populate('clientId', 'name firstName telephone') // Populate basic client info
+      .populate('policyId',"policyNumber"); // Populate policy info if needed
     
     // Count for pagination
     const totalCount = await Vehicle.countDocuments(query);
@@ -67,7 +68,9 @@ exports.getVehicles = async (req, res) => {
 exports.getVehicle = async (req, res) => {
   try {
     const vehicle = await Vehicle.findById(req.params.id)
-      .populate('clientId');
+      .populate('clientId')
+      .populate('policyId', 'policyNumber'); // Populate policy info if needed
+
       
     if (!vehicle) return res.status(404).json({ message: 'Vehicle not found' });
     
@@ -104,6 +107,8 @@ exports.createVehicle = async (req, res) => {
     });
     
     const newVehicle = await vehicle.save();
+    client.vehicles.push(newVehicle._id);
+    await client.save();
     res.status(201).json(newVehicle);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -241,6 +246,106 @@ exports.getVehicleStats = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+// Updated/Fixed addDocument and added deleteVehicleDocument functions
 
+exports.addDocument = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
 
-// Add to vehicleController.js
+    const vehicle = await Vehicle.findById(req.params.id);
+    if (!vehicle) return res.status(404).json({ message: 'Vehicle not found' });
+
+    // Create document object with proper validation
+    const newDocument = {
+      type: req.body.type || 'Other',
+      title: req.body.title || req.file.originalname,
+      file: {
+        path: req.file.path,
+        originalName: req.file.originalname,
+        mimeType: req.file.mimetype,
+        size: req.file.size
+      },
+      issueDate: req.body.issueDate ? new Date(req.body.issueDate) : new Date(),
+      expiryDate: req.body.expiryDate ? new Date(req.body.expiryDate) : new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
+      issuingAuthority: req.body.issuingAuthority || '',
+      notes: req.body.notes || ''
+    };
+
+    // Add document to vehicle
+    vehicle.documents.push(newDocument);
+    const updatedVehicle = await vehicle.save();
+
+    // Return only the added document to reduce response size
+    const addedDocument = updatedVehicle.documents[updatedVehicle.documents.length - 1];
+    
+    res.status(201).json({
+      message: 'Document added successfully',
+      document: addedDocument
+    });
+  } catch (error) {
+    console.error('Error adding document:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getVehicleDocument = async (req, res) => {
+  try {
+    const vehicle = await Vehicle.findById(req.params.vehicleId);
+    
+    if (!vehicle) {
+      return res.status(404).json({ message: 'Vehicle not found' });
+    }
+    
+    const document = vehicle.documents.id(req.params.documentId);
+    
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+
+    // Check if file exists
+    const fs = require('fs');
+    if (!fs.existsSync(document.file.path)) {
+      return res.status(404).json({ message: 'Document file not found on server' });
+    }
+
+    res.download(document.file.path, document.file.originalName);
+  } catch (error) {
+    console.error('Error retrieving document:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.deleteVehicleDocument = async (req, res) => {
+  try {
+    const vehicle = await Vehicle.findById(req.params.vehicleId);
+    
+    if (!vehicle) {
+      return res.status(404).json({ message: 'Vehicle not found' });
+    }
+    
+    // Find document by ID
+    const document = vehicle.documents.id(req.params.documentId);
+    
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+
+    // Delete physical file if it exists
+    const fs = require('fs');
+    if (fs.existsSync(document.file.path)) {
+      fs.unlinkSync(document.file.path);
+    }
+
+    // Remove document from array
+    vehicle.documents.pull(req.params.documentId);
+    await vehicle.save();
+    
+    res.json({ message: 'Document deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting document:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+

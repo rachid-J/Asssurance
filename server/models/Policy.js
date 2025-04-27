@@ -2,67 +2,65 @@
 const mongoose = require('mongoose');
 
 const policySchema = new mongoose.Schema({
-  policyNumber: {
-    type: String,
-    required: true,
-    unique: true
-  },
-  clientId: {
-    type: String,
-    required: true
-  },
-  clientName: {
-    type: String,
-    required: true
-  },
-  client: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Client',
-    required: true
-  },
-  insuranceType: {
-    type: String,
-    required: true
-  },
-  usage: {
-    type: String,
-    required: true
-  },
-  comment: String,
-  primeHT: {
-    type: Number,
-    required: true
-  },
-  primeTTC: {
-    type: Number,
-    required: true
-  },
-  primeActuel: {
-    type: Number,
-    required: true
-  },
-  startDate: {
-    type: Date,
-    required: true
-  },
-  endDate: {
-    type: Date,
-    required: true
-  },
-  status: {
-    type: String,
-    enum: ['active', 'expired', 'canceled'],
-    default: 'active'
-  }
+    policyNumber: {
+        type: String,
+        required: true,
+        unique: true
+    },
+    client: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Client',
+        required: true
+    },
+    vehicle: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Vehicle',
+        required: true
+    },
+    insuranceType: {
+        type: String,
+        required: true
+    },
+    usage: {
+        type: String,
+        required: true
+    },
+    comment: String,
+    
+    primeHT: {
+        type: Number,
+        required: true
+    },
+    primeTTC: {
+        type: Number,
+        required: true
+    },
+    primeActuel: {
+        type: Number,
+        required: true
+    },
+    startDate: {
+        type: Date,
+        required: true
+    },
+    endDate: {
+        type: Date,
+        required: true
+    },
+    status: {
+        type: String,
+        enum: ['active', 'expired', 'canceled'],
+        default: 'active'
+    }
 }, { timestamps: true });
 
 // Add pre-save hook to auto-update status
-policySchema.pre('save', function(next) {
-  if (this.status !== 'canceled' && (this.isModified('endDate') || this.isNew)) {
-    const now = new Date();
-    this.status = this.endDate < now ? 'expired' : 'active';
-  }
-  next();
+policySchema.pre('save', function (next) {
+    if (this.status !== 'canceled' && (this.isModified('endDate') || this.isNew)) {
+        const now = new Date();
+        this.status = this.endDate < now ? 'expired' : 'active';
+    }
+    next();
 });
 // Indexes
 

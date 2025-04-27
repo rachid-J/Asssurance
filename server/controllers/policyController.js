@@ -1,5 +1,7 @@
 const Policy = require('../models/Policy');
 const Payment = require('../models/Payment');
+const Client = require('../models/Client');
+const Vehicle = require('../models/Vehicle');
 
 
 // Helper function to build search query
@@ -41,6 +43,7 @@ const getPolicies = async (req, res) => {
 
     const policies = await Policy.find(query)
       .sort({ startDate: -1 })
+      .populate('client', 'title name firstName')
       .lean();
 
     // Get payment status for each policy
@@ -54,9 +57,15 @@ const getPolicies = async (req, res) => {
         // CORRECTED CALCULATION
         const totalAmount = policy.primeActuel;
         const remainingAmount = Math.max(totalAmount - paidAmount, 0);
-
-        return {
+        const enhancedPolicy = {
           ...policy,
+          clientName: policy.client ? 
+            `${policy.client.title} ${policy.client.firstName} ${policy.client.name}` : '',
+          vehicleInfo: policy.vehicle ?
+            `${policy.vehicle.make} ${policy.vehicle.model} (${policy.vehicle.registrationNumber})` : ''
+        };
+        return {
+          ...enhancedPolicy,
           paymentStatus: {
             totalAdvances: Math.max(payments.length, 4), // Default to 4
             paidAdvances: payments.filter(p => p.paymentDate).length,
@@ -79,27 +88,48 @@ const getPolicies = async (req, res) => {
 
 const createPolicy = async (req, res) => {
   try {
-    const { primeTTC, primeHT,primeActuel, ...policyData } = req.body;
-    
-    // Validate prime values
-    if (isNaN(primeTTC) || isNaN(primeHT)||isNaN(primeActuel)) {
-      return res.status(400).json({ message: 'Invalid amount values' });
+    const { vehicle, client, ...policyData } = req.body;
+
+    // Validate required fields
+    if (!vehicle || !client) {
+      return res.status(400).json({ message: 'Missing client or vehicle ID' });
     }
 
-    // Create policy without any advances
+    const [clientObj, vehicleObj] = await Promise.all([
+      Client.findById(client),
+      Vehicle.findById(vehicle)
+    ]);
+
+    if (!clientObj) return res.status(404).json({ message: 'Client not found' });
+    if (!vehicleObj) return res.status(404).json({ message: 'Vehicle not found' });
+
     const policy = new Policy({
       ...policyData,
-      primeTTC: parseFloat(primeTTC),
-      primeHT: parseFloat(primeHT),
-      primeActuel: parseFloat(primeActuel),
+      client: clientObj._id,
+      vehicle: vehicleObj._id,
+      usage: vehicleObj.usage
     });
-    
-    const savedPolicy = await policy.save();
-    res.status(201).json(savedPolicy);
 
+    const savedPolicy = await policy.save();
+
+    // Update relationships
+    await Promise.all([
+      Client.findByIdAndUpdate(clientObj._id, 
+        { $push: { policies: savedPolicy._id } }
+      ),
+      Vehicle.findByIdAndUpdate(vehicleObj._id,
+        { $push: { policyId: savedPolicy._id } }
+      ),
+
+    ]);
+
+    res.status(201).json(savedPolicy);
   } catch (error) {
     console.error('Policy creation error:', error);
-    res.status(400).json({ message: 'Error creating policy', error: error.message });
+    res.status(500).json({ 
+      message: 'Server error creating policy',
+      error: error.message 
+    });
   }
 };
 
@@ -185,13 +215,25 @@ const getPolicyTotals = async (req, res) => {
 };
 const getPolicyById = async (req, res) => {
   try {
-    const policy = await Policy.findById(req.params.id).lean();
-    
+    const policy = await Policy.findById(req.params.id)
+      .populate('client', 'title name firstName')
+      .populate('vehicle', 'make model registrationNumber usage')
+      .lean();
+
     if (!policy) {
       return res.status(404).json({ message: 'Policy not found' });
     }
     
-    res.json(policy);
+    // Add virtual fields
+    const enhancedPolicy = {
+      ...policy,
+      clientName: policy.client ? 
+        `${policy.client.title} ${policy.client.firstName} ${policy.client.name}` : '',
+      vehicleInfo: policy.vehicle ?
+        `${policy.vehicle.make} ${policy.vehicle.model} (${policy.vehicle.registrationNumber})` : ''
+    };
+
+    res.json(enhancedPolicy);
   } catch (error) {
     res.status(500).json({ message: 'Server Error', error: error.message });
   }
