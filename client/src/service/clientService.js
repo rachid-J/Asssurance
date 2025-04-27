@@ -1,59 +1,101 @@
-// client/src/service/clientService.js
-import { axiosClient } from './axiosClient';
+// src/service/clientService.js
 
-/**
- * Get all clients with optional search parameters
- * @param {Object} searchParams - Search parameters
- * @param {string} searchParams.search - Search term for client name
- * @param {number} searchParams.page - Page number for pagination
- * @param {number} searchParams.limit - Number of items per page
- * @returns {Promise<Array>} - Array of client objects
- */
-export const getClients = async (searchParams = {}) => {
-  const response = await axiosClient.get('/clients', { params: searchParams });
-  return response.data;
+import { axiosClient } from "./axiosClient";
+
+
+
+
+// Get all clients with filters
+// src/service/clientService.js - Updated getClients function
+
+export const getClients = async (filters) => {
+    try {
+      // Convert boolean string values to actual booleans if needed
+      const processedFilters = { ...filters };
+      
+      // Handle isDriver filter conversion from string to boolean
+      if (processedFilters.isDriver === 'true') processedFilters.isDriver = true;
+      if (processedFilters.isDriver === 'false') processedFilters.isDriver = false;
+      
+      // Remove empty filters to avoid sending unnecessary parameters
+      Object.keys(processedFilters).forEach(key => {
+        if (processedFilters[key] === '') {
+          delete processedFilters[key];
+        }
+      });
+      
+      const response = await axiosClient.get(`/clients`, { 
+        params: processedFilters,
+        withCredentials: true 
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+      throw error;
+    }
+  };
+
+// Get single client by ID with associated vehicles
+export const getClient = async (clientId) => {
+  try {
+    const response = await axiosClient.get(`/clients/${clientId}`, {
+      withCredentials: true
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching client details:', error);
+    throw error;
+  }
 };
 
-/**
- * Get a single client by ID
- * @param {string} id - Client ID
- * @returns {Promise<Object>} - Client object
- */
-export const getClient = async (id) => {
-  const response = await axiosClient.get(`/clients/${id}`);
-  return response.data;
-};
-
-/**
- * Create a new client
- * @param {Object} clientData - Client data object
- * @param {string} clientData.name - Client name
- * @param {string} clientData.telephone - Client telephone number
- * @param {string} clientData.numCarte - Client card number
- * @returns {Promise<Object>} - Created client object
- */
+// Create new client
 export const createClient = async (clientData) => {
-  const response = await axiosClient.post('/clients', clientData);
-  return response.data;
+  try {
+    const response = await axiosClient.post(`/clients`, clientData, {
+      withCredentials: true
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error creating client:', error);
+    throw error;
+  }
 };
 
-/**
- * Update an existing client
- * @param {string} id - Client ID
- * @param {Object} clientData - Client data to update
- * @returns {Promise<Object>} - Updated client object
- */
-export const updateClient = async (id, clientData) => {
-  const response = await axiosClient.put(`/clients/${id}`, clientData);
-  return response.data;
+// Update existing client
+export const updateClient = async (clientId, clientData) => {
+  try {
+    const response = await axiosClient.put(`clients/${clientId}`, clientData, {
+      withCredentials: true
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error updating client:', error);
+    throw error;
+  }
 };
 
-/**
- * Delete a client
- * @param {string} id - Client ID
- * @returns {Promise<Object>} - Response object
- */
-export const deleteClient = async (id) => {
-  const response = await axiosClient.delete(`/clients/${id}`);
-  return response.data;
+// Delete client
+export const deleteClient = async (clientId) => {
+  try {
+    const response = await axiosClient.delete(`/clients/${clientId}`, {
+      withCredentials: true
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting client:', error);
+    throw error;
+  }
+};
+
+// Get client statistics
+export const getClientStats = async () => {
+  try {
+    const response = await axiosClient.get(`/clients/stats`, {
+      withCredentials: true
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching client statistics:', error);
+    throw error;
+  }
 };

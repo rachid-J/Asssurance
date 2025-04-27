@@ -1,6 +1,14 @@
 const mongoose = require('mongoose');
 
 const clientSchema = new mongoose.Schema({
+  vehicles: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Vehicle'
+  }],
+  policies: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Policy'
+  }],
   // Basic Information
   title: {
     type: String,

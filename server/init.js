@@ -1,22 +1,144 @@
 const User = require('./models/User');
+const Client = require('./models/Client');
+const Vehicle = require('./models/Vehicle');
+const Policy = require('./models/Policy');
 const bcrypt = require('bcryptjs');
 
+// Initialize Admin
 const initAdmin = async () => {
-  const adminEmail = 'admin@assurance.com';
-  const existingAdmin = await User.findOne({ email: adminEmail });
+  try {
+    const adminEmail = 'admin@assurance.com';
+    const existingAdmin = await User.findOne({ email: adminEmail });
 
-  if (!existingAdmin) {
-    const hashedPassword = await bcrypt.hash('admin123', 10);
-    await User.create({
-      username: 'admin',
-      email: adminEmail,
-      password: hashedPassword,
-      role: 'admin',
-    });
-    console.log('✅ Admin user initialized (admin@assurance.com / admin123)');
-  } else {
-    console.log('ℹ️ Admin already exists');
+    if (!existingAdmin) {
+      const hashedPassword = await bcrypt.hash('admin123', 10);
+      await User.create({
+        username: 'admin',
+        email: adminEmail,
+        password: hashedPassword,
+        role: 'admin',
+      });
+      console.log('✅ Admin user initialized (admin@assurance.com / admin123)');
+    } else {
+      console.log('ℹ️ Admin already exists');
+    }
+  } catch (error) {
+    console.error('Admin initialization error:', error.message);
   }
 };
 
-module.exports = initAdmin;
+// Initialize Sample Client
+const initClient = async () => {
+  try {
+    const sampleClient = {
+      title: 'Mr',
+      name: 'Doe',
+      firstName: 'John',
+      telephone: '+212600000000',
+      email: 'john.doe@example.com',
+      idType: 'CIN',
+      idNumber: 'AB123456',
+      dateOfBirth: new Date(1990, 0, 1),
+      gender: 'Masculin',
+      address: '123 Main Street',
+      city: 'Casablanca',
+      postalCode: '20000',
+      profession: 'Engineer'
+    };
+
+    const existingClient = await Client.findOne({ email: sampleClient.email });
+    if (!existingClient) {
+      await Client.create(sampleClient);
+      console.log('✅ Sample client initialized');
+    }
+  } catch (error) {
+    console.error('Client initialization error:', error.message);
+  }
+};
+
+// Initialize Sample Vehicle
+const initVehicle = async () => {
+  try {
+    const client = await Client.findOne({ email: 'john.doe@example.com' });
+    
+    if (client) {
+      const sampleVehicle = {
+        clientId: client._id, // As ObjectId
+        make: 'Renault',
+        model: 'Clio',
+        yearOfManufacture: 2020,
+        registrationNumber: 'ABC1234',
+        vehicleType: 'Car',
+        fuelType: 'Diesel'
+      };
+
+      const existingVehicle = await Vehicle.findOne({ 
+        registrationNumber: sampleVehicle.registrationNumber 
+      });
+      
+      if (!existingVehicle) {
+        const newVehicle = await Vehicle.create(sampleVehicle);
+        
+        // Add vehicle to client's vehicles array
+        await Client.findByIdAndUpdate(
+          client._id,
+          { $push: { vehicles: newVehicle._id } },
+          { new: true }
+        );
+        
+        console.log('✅ Sample vehicle initialized');
+      }
+    }
+  } catch (error) {
+    console.error('Vehicle initialization error:', error.message);
+  }
+};
+// Initialize Sample Policy
+const initPolicy = async () => {
+  try {
+    const client = await Client.findOne({ email: 'john.doe@example.com' });
+    
+    if (client) {
+      const samplePolicy = {
+        policyNumber: 'POL-001',
+        clientId: client._id.toString(), // Store as string per your schema
+        clientName: `${client.firstName} ${client.name}`,
+        client: client._id, // ObjectId reference
+        insuranceType: 'Comprehensive',
+        usage: 'Personal',
+        primeHT: 5000,
+        primeTTC: 5500,
+        primeActuel: 5450,
+        startDate: new Date(),
+        endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
+        comment: 'Sample policy for testing'
+      };
+
+      const existingPolicy = await Policy.findOne({ 
+        policyNumber: samplePolicy.policyNumber 
+      });
+      
+      if (!existingPolicy) {
+        const newPolicy = await Policy.create(samplePolicy);
+        
+        // Add policy to client's policies array
+        await Client.findByIdAndUpdate(
+          client._id,
+          { $push: { policies: newPolicy._id } }
+        );
+        
+        console.log('✅ Sample policy initialized');
+      }
+    }
+  } catch (error) {
+    console.error('Policy initialization error:', error.message);
+  }
+};
+// Main initialization function
+
+module.exports = {
+  initAdmin,
+  initClient,
+  initVehicle,
+  initPolicy
+};

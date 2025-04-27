@@ -1,350 +1,571 @@
-import { useState, useEffect } from 'react';
-import { MagnifyingGlassIcon, PlusIcon, PencilIcon, TrashIcon, EyeIcon } from '@heroicons/react/24/outline';
-import { getClients, deleteClient } from '../../service/clientService';
-import { NewPolicyModal } from '../AssuranceCase/NewPolicyModal';
-import { ReplacePolicyModal } from '../AssuranceCase/ReplacePolicyModal';
-import { ClientModalCreate } from './ClientModalCreate';
-import { ClientModalEdit } from './ClientModalEdit';
-import { ClientModalView } from './ClientModalView';
-import { DeleteConfirmModal } from '../Common/DeleteConfirmModal';
-import Pagination from '../Common/Pagination';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  ArrowLeftIcon,
+  UserIcon,
+  MagnifyingGlassIcon,
+  PencilIcon,
+  UsersIcon,
+  PlusIcon,
+  PhoneIcon,
+  MapPinIcon,
+  BuildingOfficeIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  FunnelIcon,
+  ArrowsUpDownIcon
+} from '@heroicons/react/24/outline';
+import { getClients } from '../../service/clientService';
 
-export default function ClientList() {
+export const ClientList = () => {
+  const navigate = useNavigate();
+  
   // State management
-  const [searchTerm, setSearchTerm] = useState('');
   const [clients, setClients] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  
-  // Modals state
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showViewModal, setShowViewModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showNewPolicyModal, setShowNewPolicyModal] = useState(false);
-  const [showReplacePolicyModal, setShowReplacePolicyModal] = useState(false);
-  
-  // Selected client and pagination
-  const [selectedClient, setSelectedClient] = useState(null);
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
-  const [totalClients, setTotalClients] = useState(0);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalRecords: 0,
+    limit: 10
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [filters, setFilters] = useState({
+    search: '',
+    clientType: '',
+    city: '',
+    isDriver: '',
+    sortBy: 'createdAt',
+    sortOrder: 'desc',
+    page: 1,
+    limit: 10
+  });
+  const [showFilters, setShowFilters] = useState(false);
 
-  // Fetch clients with debounce for search
   useEffect(() => {
     const fetchClients = async () => {
       try {
         setLoading(true);
-        // In a real implementation, we would pass pagination params too
-        const data = await getClients({ 
-          search: searchTerm,
-          page,
-          limit
-        });
+        const response = await getClients(filters);
         
-        // For now, this is a placeholder as the API doesn't return total count
-        // In a real app, API would return { clients: [...], total: 123 }
-        setClients(data);
-        setTotalClients(data.length > 0 ? data.length + (page - 1) * limit : 0);
-        setError('');
-      } catch (err) {
-        setError('Failed to fetch clients');
-        console.error(err);
+        // Check response structure here
+        console.log('API Response:', response);
+        
+        // Adjust these based on actual response structure
+        setClients(response.data || response.clients || []); // Match your backend structure
+        setPagination(response.pagination || response.meta || {});
+      } catch (error) {
+        console.error('Error fetching clients:', error);
+        setError('Failed to load clients. Please try again later.');
       } finally {
         setLoading(false);
       }
     };
+    
+    fetchClients();
+  }, [filters]);
 
-    const debounceTimer = setTimeout(() => {
-      fetchClients();
-    }, 300);
-
-    return () => clearTimeout(debounceTimer);
-  }, [searchTerm, page, limit]);
-
-  // Handle client operations
-  const handleClientCreated = (newClient) => {
-    setClients(prevClients => [newClient, ...prevClients]);
+  const handleSearch = (e) => {
+    setFilters({
+      ...filters,
+      search: e.target.value,
+      page: 1 // Reset to first page on new search
+    });
   };
 
-  const handleClientUpdated = (updatedClient) => {
-    setClients(prevClients => 
-      prevClients.map(client => 
-        client._id === updatedClient._id ? updatedClient : client
-      )
-    );
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters({
+      ...filters,
+      [name]: value,
+      page: 1 // Reset to first page on filter change
+    });
   };
 
-  const handleClientDeleted = async () => {
-    try {
-      await deleteClient(selectedClient._id);
-      setClients(prevClients => 
-        prevClients.filter(client => client._id !== selectedClient._id)
-      );
-      setShowDeleteModal(false);
-    } catch (err) {
-      setError('Failed to delete client');
-      console.error(err);
-    }
+  const handlePageChange = (newPage) => {
+    setFilters({
+      ...filters,
+      page: newPage
+    });
   };
-
-  // Handle policy operations
-  const handlePolicyCreated = () => {
-    // Optionally refresh the client list
-    refreshClients();
+  
+  const toggleFilters = () => {
+    setShowFilters(!showFilters);
   };
-
-  const handleNewPolicy = (client) => {
-    setSelectedClient(client);
-    setShowNewPolicyModal(true);
+  
+  const clearFilters = () => {
+    setFilters({
+      ...filters,
+      clientType: '',
+      city: '',
+      isDriver: '',
+      page: 1
+    });
   };
-
-  const handleReplacePolicy = (client) => {
-    setSelectedClient(client);
-    setShowReplacePolicyModal(true);
+  
+  const handleViewClient = (clientId) => {
+    navigate(`/clients/${clientId}`);
   };
-
-  // Handle modal operations
-  const handleViewClient = (client) => {
-    setSelectedClient(client);
-    setShowViewModal(true);
+  
+  const handleEditClient = (clientId) => {
+    navigate(`/clients/${clientId}/edit`);
   };
-
-  const handleEditClient = (client) => {
-    setSelectedClient(client);
-    setShowEditModal(true);
+  
+  const handleDeleteClient = (clientId) => {
+    // Implement delete functionality
+    console.log("Delete client:", clientId);
+    // You would typically show a confirmation modal here
   };
-
-  const handleDeleteClient = (client) => {
-    setSelectedClient(client);
-    setShowDeleteModal(true);
-  };
-
-  // Refresh clients (used after operations)
-  const refreshClients = async () => {
-    try {
-      setLoading(true);
-      const data = await getClients({ search: searchTerm, page, limit });
-      setClients(data);
-    } catch (err) {
-      setError('Failed to refresh clients');
-    } finally {
-      setLoading(false);
-    }
+  
+  const handleAddClient = () => {
+    navigate('/clients/new');
   };
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header and Add button */}
-      <div className="sm:flex sm:items-center">
-        <div className="sm:flex-auto">
-          <h1 className="text-2xl font-semibold text-gray-900">Clients</h1>
-          <p className="mt-2 text-sm text-gray-700">
-            A list of all registered clients, their contact information, and card details.
-          </p>
-        </div>
-        <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+    <div className="p-4 sm:p-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center">
           <button
-            type="button"
-            onClick={() => setShowCreateModal(true)}
-            className="block rounded-md bg-[#1E265F] px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-[#272F65] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1E265F]"
+            onClick={() => navigate('/dashboard')}
+            className="mr-4 p-2 rounded-md hover:bg-gray-100"
           >
-            <PlusIcon className="h-5 w-5 inline-block mr-1" />
-            Add client
+            <ArrowLeftIcon className="h-5 w-5" />
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Client Management</h1>
+            <p className="text-sm text-gray-600">Manage and organize your clients</p>
+          </div>
+        </div>
+        <div className="flex space-x-3">
+          <button
+            className="inline-flex items-center px-3 py-2 border border-[#1E265F] shadow-sm text-sm font-medium rounded-md text-white bg-[#1E265F] hover:bg-[#272F65] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1E265F]"
+            onClick={handleAddClient}
+          >
+            <PlusIcon className="h-4 w-4 mr-2" />
+            Add Client
           </button>
         </div>
       </div>
       
-      {/* Search with filters */}
-      <div className="mt-6">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="relative flex-grow">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-              <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+      {/* Search and Filters */}
+      <div className="bg-white rounded-lg shadow mb-6">
+        <div className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="relative flex-grow max-w-md">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search clients..."
+                value={filters.search}
+                onChange={handleSearch}
+                className="focus:ring-[#1E265F] focus:border-[#1E265F] block w-full pl-10 pr-3 py-2 border-gray-300 rounded-md"
+              />
             </div>
-            <input
-              type="text"
-              name="search"
-              className="block w-full rounded-md border-0 py-3 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#1E265F] sm:text-sm sm:leading-6"
-              placeholder="Search clients by name..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setPage(1); // Reset to first page when searching
-              }}
-            />
+            
+            <div className="flex items-center">
+              <button
+                onClick={toggleFilters}
+                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1E265F]"
+              >
+                <FunnelIcon className="h-4 w-4 mr-2" />
+                Filters
+              </button>
+              
+              <button
+                onClick={() => setFilters(prev => ({
+                  ...prev,
+                  sortOrder: prev.sortOrder === 'asc' ? 'desc' : 'asc'
+                }))}
+                className="ml-2 inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1E265F]"
+              >
+                <ArrowsUpDownIcon className="h-4 w-4 mr-2" />
+                {filters.sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+              </button>
+            </div>
           </div>
-          <div className="flex-shrink-0">
-            <select
-              className="h-full rounded-md border-0 bg-white py-3 pl-3 pr-7 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-[#1E265F] sm:text-sm"
-              onChange={(e) => setLimit(Number(e.target.value))}
-              value={limit}
-            >
-              <option value={10}>10 per page</option>
-              <option value={25}>25 per page</option>
-              <option value={50}>50 per page</option>
-            </select>
+          
+          {/* Expanded filter options */}
+          {showFilters && (
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-4 gap-4">
+              <div>
+                <label htmlFor="clientType" className="block text-sm font-medium text-gray-700">
+                  Client Type
+                </label>
+                <select
+                  id="clientType"
+                  name="clientType"
+                  value={filters.clientType}
+                  onChange={handleFilterChange}
+                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-[#1E265F] focus:border-[#1E265F] sm:text-sm rounded-md"
+                >
+                  <option value="">All Client Types</option>
+                  <option value="Particulier">Particulier</option>
+                  <option value="Professionnel">Professionnel</option>
+                  <option value="Entreprise">Entreprise</option>
+                </select>
+              </div>
+              
+              <div>
+                <label htmlFor="city" className="block text-sm font-medium text-gray-700">
+                  City
+                </label>
+                <input
+                  type="text"
+                  id="city"
+                  name="city"
+                  placeholder="Filter by city..."
+                  value={filters.city}
+                  onChange={handleFilterChange}
+                  className="mt-1 focus:ring-[#1E265F] focus:border-[#1E265F] block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="isDriver" className="block text-sm font-medium text-gray-700">
+                  Driver Status
+                </label>
+                <select
+                  id="isDriver"
+                  name="isDriver"
+                  value={filters.isDriver}
+                  onChange={handleFilterChange}
+                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-[#1E265F] focus:border-[#1E265F] sm:text-sm rounded-md"
+                >
+                  <option value="">All</option>
+                  <option value="true">Drivers</option>
+                  <option value="false">Non-Drivers</option>
+                </select>
+              </div>
+              
+              <div>
+                <label htmlFor="sortBy" className="block text-sm font-medium text-gray-700">
+                  Sort By
+                </label>
+                <select
+                  id="sortBy"
+                  name="sortBy"
+                  value={filters.sortBy}
+                  onChange={handleFilterChange}
+                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-[#1E265F] focus:border-[#1E265F] sm:text-sm rounded-md"
+                >
+                  <option value="createdAt">Created Date</option>
+                  <option value="name">Name</option>
+                  <option value="city">City</option>
+                </select>
+              </div>
+              
+              <div className="sm:col-span-4 flex justify-end">
+                <button
+                  onClick={clearFilters}
+                  className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                >
+                  Clear Filters
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Client Stats Summary */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0 bg-blue-100 rounded-md p-3">
+                <UsersIcon className="h-6 w-6 text-blue-600" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Total Clients</dt>
+                  <dd className="text-lg font-medium text-gray-900">{pagination.totalRecords || 0}</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0 bg-green-100 rounded-md p-3">
+                <UserIcon className="h-6 w-6 text-green-600" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Particulier</dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {clients.filter(c => c.clientType === 'Particulier').length}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0 bg-purple-100 rounded-md p-3">
+                <BuildingOfficeIcon className="h-6 w-6 text-purple-600" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Professionnel</dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {clients.filter(c => c.clientType === 'Professionnel').length}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0 bg-yellow-100 rounded-md p-3">
+                <BuildingOfficeIcon className="h-6 w-6 text-yellow-600" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Entreprise</dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {clients.filter(c => c.clientType === 'Entreprise').length}
+                  </dd>
+                </dl>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-
-      {/* Error Message */}
-      {error && (
-        <div className="mt-4 p-4 bg-red-50 text-red-700 rounded-md">
-          {error}
-        </div>
-      )}
-
-      {/* Loading State */}
-      {loading && (
-        <div className="mt-4 flex justify-center items-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1E265F]"></div>
-        </div>
-      )}
-
-      {/* Clients Table */}
-      <div className="mt-8 flow-root">
-        <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-          <div className="inline-block min-w-full py-2 align-middle">
-            <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-              <table className="min-w-full divide-y divide-gray-300">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
-                      Client Name
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      Telephone
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      Card Number
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      Created Date
-                    </th>
-                    <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
-                      <span className="sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
-                  {clients.length === 0 && !loading ? (
+      
+      {/* Main content */}
+      <div className="bg-white shadow overflow-hidden sm:rounded-md">
+        {/* Loading and error states */}
+        {loading && (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1E265F]"></div>
+          </div>
+        )}
+        
+        {error && (
+          <div className="p-4 sm:p-6">
+            <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-md">
+              <p>{error}</p>
+              <button
+                onClick={() => setFilters({...filters})} // Trigger refetch
+                className="mt-2 text-red-600 underline"
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
+        )}
+        
+        {/* Client table */}
+        {!loading && !error && (
+          <>
+            {clients.length === 0 ? (
+              <div className="text-center py-12">
+                <UsersIcon className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No clients found</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Start by adding a new client or adjust your filters.
+                </p>
+                <div className="mt-6">
+                  <button
+                    onClick={handleAddClient}
+                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#1E265F] hover:bg-[#272F65] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1E265F]"
+                  >
+                    <PlusIcon className="h-5 w-5 mr-2" />
+                    Add Client
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
                     <tr>
-                      <td colSpan="5" className="text-center py-4 text-gray-500">
-                        No clients found. Try adjusting your search.
-                      </td>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Client
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Contact
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Location
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Client Type
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
                     </tr>
-                  ) : (
-                    clients.map((client) => (
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {clients.map((client) => (
                       <tr key={client._id} className="hover:bg-gray-50">
-                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                          {client.name}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                              <UserIcon className="h-6 w-6 text-gray-500" />
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-[#1E265F]">
+                                {client.title} {client.firstName} {client.name}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                ID: {client.idNumber || 'N/A'}
+                              </div>
+                            </div>
+                          </div>
                         </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {client.telephone}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center text-sm text-gray-900">
+                            <PhoneIcon className="h-4 w-4 text-gray-500 mr-1" />
+                            {client.telephone || 'N/A'}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {client.email || 'No email'}
+                          </div>
                         </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {client.numCarte}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center text-sm text-gray-900">
+                            <MapPinIcon className="h-4 w-4 text-gray-500 mr-1" />
+                            {client.city || 'N/A'}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {client.address || 'No address'}
+                          </div>
                         </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {new Date(client.createdAt).toLocaleDateString()}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            client.clientType === 'Particulier' ? 'bg-green-100 text-green-800' :
+                            client.clientType === 'Professionnel' ? 'bg-purple-100 text-purple-800' :
+                            'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {client.clientType || 'Unknown'}
+                          </span>
                         </td>
-                        <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            client.isDriver === true ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                          }`}>
+                            {client.isDriver === true ? 'Driver' : 'Non-Driver'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <button
-                            onClick={() => handleViewClient(client)}
-                            className="text-[#1E265F] hover:text-[#272F65] mr-2"
-                            title="View client details"
+                            onClick={() => handleViewClient(client._id)}
+                            className="text-[#1E265F] hover:text-[#3D4577] mr-3"
                           >
-                            <EyeIcon className="h-5 w-5" />
+                            View
                           </button>
                           <button
-                            onClick={() => handleEditClient(client)}
-                            className="text-[#1E265F] hover:text-[#272F65] mr-2"
-                            title="Edit client"
+                            onClick={() => handleEditClient(client._id)}
+                            className="text-indigo-600 hover:text-indigo-900 mr-3"
                           >
-                            <PencilIcon className="h-5 w-5" />
+                            Edit
                           </button>
                           <button
-                            onClick={() => handleDeleteClient(client)}
-                            className="text-red-600 hover:text-red-700 mr-4"
-                            title="Delete client"
+                            onClick={() => handleDeleteClient(client._id)}
+                            className="text-red-600 hover:text-red-900"
                           >
-                            <TrashIcon className="h-5 w-5" />
-                          </button>
-                          <button 
-                            onClick={() => handleNewPolicy(client)}
-                            className="text-[#1E265F] hover:text-[#272F65] mr-2 px-2 py-1 border border-[#1E265F] rounded-md"
-                            title="Affaire Nouvelle - Create new policy"
-                          >
-                            A.F
-                          </button>
-                          <button 
-                            onClick={() => handleReplacePolicy(client)}
-                            className="text-[#1E265F] hover:text-[#272F65] px-2 py-1 border border-[#1E265F] rounded-md"
-                            title="Remplacement de Police - Replace policy"
-                          >
-                            R.P
+                            Delete
                           </button>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+        
+        {/* Pagination */}
+        {!loading && !error && clients.length > 0 && (
+          <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+            <div className="flex-1 flex justify-between sm:hidden">
+              <button
+                onClick={() => handlePageChange(pagination.currentPage - 1)}
+                disabled={pagination.currentPage <= 1}
+                className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
+                  pagination.currentPage <= 1 
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => handlePageChange(pagination.currentPage + 1)}
+                disabled={pagination.currentPage >= pagination.totalPages}
+                className={`ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
+                  pagination.currentPage >= pagination.totalPages 
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Next
+              </button>
+            </div>
+            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-gray-700">
+                  Showing <span className="font-medium">{clients.length > 0 ? ((pagination.currentPage - 1) * pagination.limit) + 1 : 0}</span> to{' '}
+                  <span className="font-medium">
+                    {Math.min(pagination.currentPage * pagination.limit, pagination.totalRecords)}
+                  </span>{' '}
+                  of <span className="font-medium">{pagination.totalRecords}</span> results
+                </p>
+              </div>
+              <div>
+                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                  <button
+                    onClick={() => handlePageChange(pagination.currentPage - 1)}
+                    disabled={pagination.currentPage <= 1}
+                    className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 text-sm font-medium ${
+                      pagination.currentPage <= 1 
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                        : 'bg-white text-gray-500 hover:bg-gray-50'
+                    }`}
+                  >
+                    <ChevronLeftIcon className="h-5 w-5" />
+                  </button>
+                  
+                  {/* Page numbers would go here - simplified for example */}
+                  <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                    Page {pagination.currentPage} of {pagination.totalPages}
+                  </span>
+                  
+                  <button
+                    onClick={() => handlePageChange(pagination.currentPage + 1)}
+                    disabled={pagination.currentPage >= pagination.totalPages}
+                    className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 text-sm font-medium ${
+                      pagination.currentPage >= pagination.totalPages 
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                        : 'bg-white text-gray-500 hover:bg-gray-50'
+                    }`}
+                  >
+                    <ChevronRightIcon className="h-5 w-5" />
+                  </button>
+                </nav>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
-
-      {/* Pagination */}
-      <Pagination 
-        currentPage={page}
-        totalItems={totalClients}
-        pageSize={limit}
-        onPageChange={setPage}
-      />
-
-      {/* Modals */}
-      <ClientModalCreate
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onClientCreated={handleClientCreated}
-      />
-      
-      <ClientModalEdit
-        isOpen={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        onClientUpdated={handleClientUpdated}
-        client={selectedClient}
-      />
-
-      <ClientModalView
-        isOpen={showViewModal}
-        onClose={() => setShowViewModal(false)}
-        client={selectedClient}
-      />
-      
-      <DeleteConfirmModal
-        isOpen={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
-        onConfirm={handleClientDeleted}
-        title="Delete Client"
-        message={`Are you sure you want to delete ${selectedClient?.name}? This action cannot be undone.`}
-      />
-      
-      <NewPolicyModal
-        isOpen={showNewPolicyModal}
-        onClose={() => setShowNewPolicyModal(false)}
-        client={selectedClient}
-        onPolicyCreated={handlePolicyCreated}
-      />
-      
-      <ReplacePolicyModal
-        isOpen={showReplacePolicyModal}
-        onClose={() => setShowReplacePolicyModal(false)}
-        client={selectedClient}
-        onPolicyCreated={handlePolicyCreated}
-      />
     </div>
   );
-}
+};
+

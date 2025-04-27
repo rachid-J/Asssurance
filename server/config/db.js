@@ -1,11 +1,16 @@
 const mongoose = require('mongoose');
 
-const initAdmin = require('../init');
+
+const { initAdmin, initClient, initVehicle, initPolicy } = require('../init');
 
 const connectDB = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI);
-    await initAdmin(); // Initialize admin user
+     // Run initializations in sequence
+     await initAdmin();
+     await initClient();
+     await initVehicle();
+     await initPolicy();// Initialize admin user
 
     console.log('✅ MongoDB connected');
   } catch (error) {

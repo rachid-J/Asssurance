@@ -15,6 +15,11 @@ const policySchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  client: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Client',
+    required: true
+  },
   insuranceType: {
     type: String,
     required: true

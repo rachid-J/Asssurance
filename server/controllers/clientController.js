@@ -2,61 +2,67 @@ const Client = require('../models/Client');
 const Vehicle = require('../models/Vehicle');
 
 // Get all clients with advanced search
+// Updated getClients function for clientController.js
 exports.getClients = async (req, res) => {
   try {
-    const { 
-      search, 
-      clientType, 
-      city, 
-      isDriver,
-      sortBy = 'createdAt',
-      sortOrder = 'desc',
-      page = 1,
-      limit = 10
-    } = req.query;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
     
-    // Build query
-    const query = {};
+    // Build filter query
+    const filter = {};
     
-    // Text search across multiple fields
-    if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { firstName: { $regex: search, $options: 'i' } },
-        { telephone: { $regex: search, $options: 'i' } },
-        { idNumber: { $regex: search, $options: 'i' } },
-        { numCarte: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } }
+    // Search filter (across multiple fields)
+    if (req.query.search) {
+      const searchRegex = new RegExp(req.query.search, 'i');
+      filter.$or = [
+        { name: searchRegex },
+        { firstName: searchRegex },
+        { email: searchRegex },
+        { telephone: searchRegex },
+        { idNumber: searchRegex }
       ];
     }
     
-    // Add filters
-    if (clientType) query.clientType = clientType;
-    if (city) query.city = { $regex: city, $options: 'i' };
-    if (isDriver !== undefined) query.isDriver = isDriver === 'true';
+    // Client type filter
+    if (req.query.clientType) {
+      filter.clientType = req.query.clientType;
+    }
     
-    // Calculate pagination
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    // City filter
+    if (req.query.city) {
+      filter.city = new RegExp(req.query.city, 'i');
+    }
     
-    // Determine sort direction
-    const sortDirection = sortOrder === 'asc' ? 1 : -1;
+    // Driver status filter
+    if (req.query.isDriver === 'true' || req.query.isDriver === true) {
+      filter.isDriver = true;
+    } else if (req.query.isDriver === 'false' || req.query.isDriver === false) {
+      filter.isDriver = false;
+    }
     
-    // Execute query with pagination and sorting
-    const clients = await Client.find(query)
-      .sort({ [sortBy]: sortDirection })
+    // Sort options
+    const sort = {};
+    if (req.query.sortBy) {
+      sort[req.query.sortBy] = req.query.sortOrder === 'asc' ? 1 : -1;
+    } else {
+      sort.createdAt = -1; // Default sort by creation date (newest first)
+    }
+    
+    const clients = await Client.find(filter)
+      .sort(sort)
       .skip(skip)
-      .limit(parseInt(limit));
-    
-    // Get total count for pagination
-    const totalCount = await Client.countDocuments(query);
+      .limit(limit);
+      
+    const total = await Client.countDocuments(filter);
     
     res.json({
-      clients,
+      data: clients,
       pagination: {
-        totalRecords: totalCount,
-        currentPage: parseInt(page),
-        totalPages: Math.ceil(totalCount / parseInt(limit)),
-        limit: parseInt(limit)
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+        totalRecords: total,
+        limit
       }
     });
   } catch (error) {
@@ -67,15 +73,23 @@ exports.getClients = async (req, res) => {
 // Get single client with vehicles
 exports.getClient = async (req, res) => {
   try {
-    const client = await Client.findById(req.params.id);
+    const client = await Client.findById(req.params.id)
+      .populate({
+        path: 'vehicles',
+        select: 'make model yearOfManufacture registrationNumber vehicleType',
+        options: { sort: { createdAt: -1 } }
+  })
+   .populate({
+        path: 'policies',
+        options: { sort: { startDate: -1 } }
+      });
+
     if (!client) return res.status(404).json({ message: 'Client not found' });
     
-    // Get vehicles associated with this client
-    const vehicles = await Vehicle.find({ clientId: client._id });
-    
     res.json({
-      client,
-      vehicles
+      client: client.toObject({ virtuals: true }),
+      vehicles: client.vehicles || [],
+      policies: client.policies || []
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

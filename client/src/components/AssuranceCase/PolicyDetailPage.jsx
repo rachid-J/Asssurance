@@ -127,7 +127,7 @@ export default function PolicyDetailPage() {
       <div className="p-4 sm:p-6">
         <div className="flex items-center mb-6">
           <button
-            onClick={() => navigate('/policies')}
+            onClick={() => navigate('/assurance-cases')}
             className="mr-4 p-2 rounded-md hover:bg-gray-100"
           >
             <ArrowLeftIcon className="h-5 w-5" />
@@ -153,7 +153,7 @@ export default function PolicyDetailPage() {
       <div className="p-4 sm:p-6">
         <div className="flex items-center mb-6">
           <button
-            onClick={() => navigate('/policies')}
+            onClick={() => navigate('/assurance-cases')}
             className="mr-4 p-2 rounded-md hover:bg-gray-100"
           >
             <ArrowLeftIcon className="h-5 w-5" />
@@ -164,7 +164,7 @@ export default function PolicyDetailPage() {
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-md">
           <p>The requested policy could not be found. It may have been deleted or you may not have permission to view it.</p>
           <button
-            onClick={() => navigate('/policies')}
+            onClick={() => navigate('/assurance-cases')}
             className="mt-2 text-yellow-600 underline"
           >
             Return to Policies
@@ -182,7 +182,7 @@ export default function PolicyDetailPage() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center">
           <button
-            onClick={() => navigate('/policies')}
+            onClick={() => navigate('/assurance-cases')}
             className="mr-4 p-2 rounded-md hover:bg-gray-100"
           >
             <ArrowLeftIcon className="h-5 w-5" />
@@ -208,15 +208,6 @@ export default function PolicyDetailPage() {
             Manage Payments
           </button>
         </div>
-        {policy.status === 'active' && (
-    <button
-      className="inline-flex items-center px-3 py-2 border border-red-300 shadow-sm text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-      onClick={handleCancelPolicy}
-    >
-      <XCircleIcon className="h-4 w-4 mr-2" />
-      Cancel Policy
-    </button>
-  )}
       </div>
 
       {/* Content Grid */}
