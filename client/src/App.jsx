@@ -1,6 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Auth } from './Auth/Auth';
-import Dashboard from './components/Dashboard/Dashboard';
 import Layout from './components/Common/Layout';
 import { AuthLayout } from './Layouts/AuthLayout';
 import { MainLayout } from './Layouts/MainLayout';
@@ -20,7 +19,7 @@ import  DocumentsList  from './components/Documents/DocumentsList';
 import  AssuranceList  from './components/AssuranceCase/AssuranceList';
 import  InsuranceDetailPage  from './components/AssuranceCase/InsuranceDetailPage';
 import PaymentPage from './components/AssuranceCase/PaymentPage';
-
+import{ Dashboard} from './components/Dashboard/Dashboard'
 
 function App() {
   const [serverStatus, setServerStatus] = useState(null);
