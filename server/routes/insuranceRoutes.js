@@ -10,8 +10,8 @@ const {
   cancelInsurance,
   getInsuranceById,
   changeInsuranceTypeToResel,
+  processRefund
 } = require('../controllers/insuranceController'); // Changed controller reference
-const { getInsurancePayments, updatePayment } = require('../controllers/paymentController');
 const { protect } = require('../middleware/authMiddleware');
 
 const router = express.Router();
@@ -36,10 +36,11 @@ router.route('/:id')
   // Changed from deletePolicy
 
 // Renewal and cancellation routes
-router.post('/:id/renew', renewInsurance);    // Changed path and controller
-router.post('/:id/cancel', cancelInsurance);  // Changed path and controller
+router.post('/:id/renew', protect,renewInsurance);    // Changed path and controller
+router.put('/:id/cancel', protect,cancelInsurance);  // Changed path and controller
 
-router.put('/:id/type-resel', changeInsuranceTypeToResel);
+router.put('/:id/type-resel', protect ,changeInsuranceTypeToResel);
+router.post('/:id/refund',protect, processRefund);
 
 
 

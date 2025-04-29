@@ -200,6 +200,42 @@ export default function AssuranceList() {
     return user ? user.username : 'Unknown';
   };
 
+  // Get row background color based on insurance status
+  const getRowBackgroundColor = (insurance) => {
+    const isAddedToday = new Date(insurance.createdAt).toISOString().split('T')[0] === getTodayDate();
+    
+    if (isAddedToday) return 'bg-blue-50 hover:bg-blue-100';
+    
+    switch (insurance.status) {
+      case 'Active':
+        return 'bg-green-50 hover:bg-green-100';
+      case 'Expired':
+        return 'bg-red-50 hover:bg-red-100';
+      case 'Canceled':
+        return 'bg-yellow-50 hover:bg-yellow-100';
+      case 'Termination':
+        return 'bg-orange-50 hover:bg-orange-100';
+      default:
+        return 'hover:bg-gray-50';
+    }
+  };
+
+  // Get status badge style based on insurance status
+  const getStatusBadgeStyle = (status) => {
+    switch (status) {
+      case 'Active':
+        return 'bg-green-100 text-green-800';
+      case 'Expired':
+        return 'bg-red-100 text-red-800';
+      case 'Canceled':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'Termination':
+        return 'bg-orange-100 text-orange-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   // Initial data load
   useEffect(() => {
     fetchInsurance();
@@ -359,6 +395,28 @@ export default function AssuranceList() {
         </div>
       </div>
 
+      {/* Status Legend */}
+      <div className="mt-8">
+        <h3 className="text-sm font-medium text-gray-500 mb-2">Status Legend:</h3>
+        <div className="flex flex-wrap gap-3">
+          <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+            Active
+          </span>
+          <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-medium bg-red-100 text-red-800 border border-red-200">
+            Expired
+          </span>
+          <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
+            Canceled
+          </span>
+          <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-medium bg-orange-100 text-orange-800 border border-orange-200">
+            Termination
+          </span>
+          <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+            Added Today
+          </span>
+        </div>
+      </div>
+
       {/* Loading and Error States */}
       {status.loading && (
         <div className="flex justify-center items-center p-8">
@@ -380,7 +438,7 @@ export default function AssuranceList() {
 
       {/* Insurance Table */}
       {!status.loading && !status.error && (
-        <div className="mt-8 flow-root">
+        <div className="mt-4 flow-root">
           <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
             <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
               <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
@@ -414,21 +472,21 @@ export default function AssuranceList() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 bg-white">
-                      {data.Insurance.map((Insurance) => {
-                        const paymentStatus = Insurance.paymentStatus || getPaymentStatus(Insurance);
-                        const isAddedToday = new Date(Insurance.createdAt).toISOString().split('T')[0] === getTodayDate();
+                      {data.Insurance.map((insurance) => {
+                        const paymentStatus = insurance.paymentStatus || getPaymentStatus(insurance);
+                        const rowBackgroundColor = getRowBackgroundColor(insurance);
+                        const statusBadgeStyle = getStatusBadgeStyle(insurance.status);
+                        const isAddedToday = new Date(insurance.createdAt).toISOString().split('T')[0] === getTodayDate();
                         
                         return (
                           <tr 
-                            key={Insurance._id}
-                            className={`hover:bg-gray-50 transition-colors duration-150 cursor-pointer ${
-                              isAddedToday ? 'bg-blue-50' : ''
-                            }`}
-                            onClick={() => goToInsuranceDetails(Insurance._id)}
+                            key={insurance._id}
+                            className={`transition-colors duration-150 cursor-pointer ${rowBackgroundColor}`}
+                            onClick={() => goToInsuranceDetails(insurance._id)}
                           >
                             {/* Client */}
                             <td className="px-4 py-3 text-sm text-gray-900 font-medium">
-                              {Insurance.clientName}
+                              {insurance.clientName}
                               {isAddedToday && (
                                 <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                   New
@@ -438,43 +496,33 @@ export default function AssuranceList() {
                             
                             {/* Insurance Number */}
                             <td className="px-4 py-3 text-sm text-gray-600">
-                              #{Insurance.policyNumber}
+                              #{insurance.policyNumber}
                             </td>
 
                             {/* Type */}
                             <td className="px-4 py-3 text-sm text-gray-600">
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                {Insurance.insuranceType}
+                                {insurance.insuranceType}
                               </span>
                             </td>
                             
                             {/* Status */}
                             <td className="px-4 py-3 text-sm">
-                              {Insurance.status === 'active' ? (
-                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                  Active
-                                </span>
-                              ) : Insurance.status === 'expired' ? (
-                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                  Expired
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                  Canceled
-                                </span>
-                              )}
+                              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${statusBadgeStyle}`}>
+                                {insurance.status}
+                              </span>
                             </td>
 
                             {/* Prime TTC */}
                             <td className="px-4 py-3 text-sm text-gray-600 text-right">
                               <span className="font-medium">
-                                {Insurance.primeTTC.toFixed(2)} MAD
+                                {insurance.primeTTC.toFixed(2)} MAD
                               </span>
                             </td>
 
                             {/* Start Date */}
                             <td className="px-4 py-3 text-sm text-gray-600">
-                              {new Date(Insurance.startDate).toLocaleDateString('en-GB')}
+                              {new Date(insurance.startDate).toLocaleDateString('en-GB')}
                             </td>
 
                             {/* Payment Status */}
@@ -508,7 +556,7 @@ export default function AssuranceList() {
                                   title="View Details"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    goToInsuranceDetails(Insurance._id);
+                                    goToInsuranceDetails(insurance._id);
                                   }}
                                 >
                                   <ArrowTopRightOnSquareIcon className="h-5 w-5" />
@@ -518,7 +566,7 @@ export default function AssuranceList() {
                                   title="Edit Insurance"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    navigate(`/insurance/${Insurance._id}/edit`);
+                                    navigate(`/insurance/${insurance._id}/edit`);
                                   }}
                                 >
                                   <PencilIcon className="h-5 w-5" />

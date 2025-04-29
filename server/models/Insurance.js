@@ -52,25 +52,25 @@ const insuranceSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['active', 'expired', 'canceled','termination'],
-        default: 'active'
+        enum: ['Active', 'Expired', 'Canceled','Termination'],
+        default: 'Active'
     }
 }, { timestamps: true });
 
 // Auto-update status based on endDate
 insuranceSchema.pre('save', function (next) {
-    if (this.status !== 'canceled' && (this.isModified('endDate') || this.isNew)) {
+    if (this.status !== 'Canceled' && (this.isModified('endDate') || this.isNew)) {
         const now = new Date();
-        this.status = this.endDate < now ? 'expired' : 'active';
+        this.status = this.endDate < now ? 'Expired' : 'Active';
     }
     next();
 });
 
 // Auto-update status based on endDate
 insuranceSchema.pre('save', function(next) {
-    if (this.status !== 'canceled' && (this.isModified('endDate') || this.isNew)) {
+    if (this.status !== 'Canceled' && (this.isModified('endDate') || this.isNew)) {
         const now = new Date();
-        this.status = this.endDate < now ? 'expired' : 'active';
+        this.status = this.endDate < now ? 'Expired' : 'Active';
     }
     next();
 });

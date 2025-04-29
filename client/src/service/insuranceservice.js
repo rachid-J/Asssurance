@@ -233,22 +233,52 @@ export const renewInsurance = async (insuranceId) => {
 };
 
 // Cancel an insurance policy
-export const cancelInsurance = async (insuranceId) => {
+// Additional functions to add to insuranceservice.js
+
+// Change insurance type to resel with optional refund
+export const changeInsuranceTypeToResel = async (insuranceId, refundData = null) => {
   try {
-    const response = await axiosClient.put(`/insurances/${insuranceId}/cancel`);
+    if (!insuranceId) {
+      throw new Error("Insurance ID is required");
+    }
+    
+    const response = await axiosClient.put(`/insurances/${insuranceId}/type-resel`, refundData);
+    return response.data;
+  } catch (error) {
+    console.error(`Error changing insurance type ${insuranceId} to resel:`, error);
+    
+    // Enhance error message based on response if available
+    const errorMessage = error.response?.data?.message || 'Failed to change insurance type';
+    throw new Error(errorMessage);
+  }
+};
+// Process refund for an insurance
+export const processInsuranceRefund = async (insuranceId, refundData) => {
+  try {
+    if (!insuranceId) {
+      throw new Error("Insurance ID is required");
+    }
+    
+    if (!refundData || !refundData.refundAmount || refundData.refundAmount <= 0) {
+      throw new Error("Valid refund amount is required");
+    }
+    
+    const response = await axiosClient.post(`/insurances/${insuranceId}/refund`, refundData);
+    return response.data;
+  } catch (error) {
+    console.error(`Error processing refund for insurance ${insuranceId}:`, error);
+    
+    // Enhance error message based on response if available
+    const errorMessage = error.response?.data?.message || 'Failed to process refund';
+    throw new Error(errorMessage);
+  }
+};
+export const cancelInsurance = async (insuranceId, refundData = null) => {
+  try {
+    const response = await axiosClient.put(`/insurances/${insuranceId}/cancel`, refundData);
     return response.data;
   } catch (error) {
     console.error(`Error canceling insurance ${insuranceId}:`, error);
-    throw error;
-  }
-};
-
-export const changeInsuranceTypeToResel = async (insuranceId) => {
-  try {
-    const response = await axiosClient.put(`/insurances/${insuranceId}/type-resel`);
-    return response.data;
-  } catch (error) {
-    console.error(`Error changing insurance type ${insuranceId}:`, error);
     throw error;
   }
 };

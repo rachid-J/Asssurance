@@ -302,19 +302,118 @@ const renewInsurance = async (req, res) => {
   }
 };
 
+// Add this updated cancelInsurance function to your controller
+
 const cancelInsurance = async (req, res) => {
   try {
-    const insurance = await Insurance.findByIdAndUpdate(
-      req.params.id,
-      { status: 'Canceled' },
-      { new: true }
-    );
+    const insuranceId = req.params.id;
+    const refundData = req.body; // Contains refundAmount, refundMethod, cancelReason, penaltyPercentage, fullRefund
     
-    if (!insurance) return res.status(404).json({ message: 'Insurance not found' });
+    // Validate user authentication
+    if (!req.user?._id) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
     
-    res.json(insurance);
+    // Find the insurance policy
+    const insurance = await Insurance.findById(insuranceId);
+    
+    if (!insurance) {
+      return res.status(404).json({ message: 'Insurance not found' });
+    }
+    
+    // Check if insurance is already canceled
+    if (insurance.status === 'Canceled') {
+      return res.status(400).json({
+        message: 'Insurance is already canceled',
+        insurance
+      });
+    }
+    
+    // Get total payments made for this insurance
+    const payments = await Payment.find({ insurance: insuranceId });
+    const totalPaid = payments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+    
+    // Handle refunds
+    let refunds = [];
+    const isFullRefund = refundData?.fullRefund === true;
+    
+    if (isFullRefund && totalPaid > 0) {
+      // Full refund - create refund entries for each payment
+      for (const payment of payments) {
+        if (payment.amount > 0) { // Only refund positive payments (not previous refunds)
+          const refund = await Payment.create({
+            insurance: insuranceId,
+            advanceNumber: payment.advanceNumber, // Keep same advance number for tracking
+            paymentDate: new Date(),
+            amount: -Math.abs(payment.amount), // Negative amount for refund
+            paymentMethod: refundData.refundMethod || payment.paymentMethod || 'cash',
+            reference: `Refund of payment #${payment.advanceNumber}`,
+            notes: `Full refund: ${refundData.cancelReason || 'Insurance canceled'} (Penalty: ${refundData.penaltyPercentage || 0}%)`
+          });
+          refunds.push(refund);
+        }
+      }
+    } else if (refundData && totalPaid > 0 && refundData.refundAmount > 0) {
+      // Partial refund - create a single refund record
+      const refund = await Payment.create({
+        insurance: insuranceId,
+        advanceNumber: payments.length + 1,
+        paymentDate: new Date(),
+        amount: -Math.abs(refundData.refundAmount), // Negative amount for refund
+        paymentMethod: refundData.refundMethod || 'cash',
+        reference: refundData.reference || '',
+        notes: `Partial refund: ${refundData.cancelReason || 'Insurance canceled'} (Penalty: ${refundData.penaltyPercentage || 0}%)`
+      });
+      refunds.push(refund);
+    }
+    
+    // Calculate net amount after all refunds
+    const allPayments = await Payment.find({ insurance: insuranceId });
+    const netAmount = allPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+    
+    // Update the insurance status to 'Canceled'
+    const updatedInsurance = await Insurance.findByIdAndUpdate(
+      insuranceId,
+      {
+        status: 'Canceled',
+        canceledAt: new Date(),
+        canceledBy: req.user._id,
+        cancelReason: refundData?.cancelReason || '',
+        ...(refundData ? { 
+          refundDetails: {
+            ...refundData,
+            totalRefunded: isFullRefund ? totalPaid : (refundData.refundAmount || 0),
+            isFullRefund
+          } 
+        } : {})
+      },
+      { new: true, runValidators: true }
+    )
+    .populate('client', 'title name firstName')
+    .populate('vehicle', 'make model registrationNumber');
+    
+    res.json({
+      success: true,
+      message: isFullRefund ? 
+        'Insurance canceled with full refund of all payments' : 
+        'Insurance canceled successfully',
+      insurance: {
+        ...updatedInsurance.toObject(),
+        clientName: updatedInsurance.client ? 
+          `${updatedInsurance.client.title} ${updatedInsurance.client.firstName} ${updatedInsurance.client.name}` : '',
+        vehicleInfo: updatedInsurance.vehicle ?
+          `${updatedInsurance.vehicle.make} ${updatedInsurance.vehicle.model} (${updatedInsurance.vehicle.registrationNumber})` : '',
+        netAmount: netAmount // Add net amount after refunds
+      },
+      refunds: refunds
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Error canceling insurance:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error canceling insurance',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Server error'
+    });
   }
 };
 
@@ -322,9 +421,10 @@ const cancelInsurance = async (req, res) => {
 const changeInsuranceTypeToResel = async (req, res) => {
   try {
     const insuranceId = req.params.id;
+    const refundData = req.body; // This may contain refund information
     
     // Validate user authentication
-    if (!req.user?._id) {
+    if (!req.user._id) {
       return res.status(401).json({ message: 'Authentication required' });
     }
 
@@ -335,34 +435,54 @@ const changeInsuranceTypeToResel = async (req, res) => {
       return res.status(404).json({ message: 'Insurance not found' });
     }
     
-    // Check if the insurance is already of type "resel"
-    if (insurance.insuranceType === 'resel') {
+    // Check if the insurance is already of type "resel" (Termination)
+    if (insurance.status === 'Termination') {
       return res.status(400).json({ 
-        message: 'Insurance is already of type resel',
+        message: 'Insurance is already of type Termination',
         insurance
       });
     }
     
     // Store the previous type for logging
-    const previousType = insurance.insuranceType;
+    const previousType = insurance.status;
     
-    // Update the insurance type to "resel"
+    // Update the insurance type to "resel" (Termination)
     const updatedInsurance = await Insurance.findByIdAndUpdate(
       insuranceId,
       { 
-        insuranceType: 'resel',
-        updatedBy: req.user._id // Track who made the change if you have this field
+        status: 'Termination',
+        updatedBy: req.user._id 
       },
       { new: true, runValidators: true }
     )
     .populate('client', 'title name firstName')
     .populate('vehicle', 'make model registrationNumber');
     
-    console.log(`Insurance ${insuranceId} type changed from ${previousType} to resel by user ${req.user._id}`);
+    // If refund data was provided, create a payment record with negative amount (refund)
+    if (refundData && refundData.refundAmount > 0) {
+      // Find the count of existing payments for this insurance
+      const existingPayments = await Payment.find({ insurance: insuranceId });
+      const nextAdvanceNumber = existingPayments.length + 1;
+      
+      // Create a payment record with negative amount (to represent a refund)
+      const refundPayment = await Payment.create({
+        insurance: insuranceId,
+        advanceNumber: nextAdvanceNumber,
+        paymentDate: new Date(),
+        amount: -Math.abs(refundData.refundAmount), // Ensure negative amount
+        paymentMethod: refundData.refundMethod || 'cash',
+        reference: 'Refund - Insurance converted to resel',
+        notes: refundData.refundReason || 'Insurance converted to resel/termination'
+      });
+
+      console.log(`Refund payment of ${refundData.refundAmount} processed for insurance ${insuranceId}`);
+    }
+    
+    console.log(`Insurance ${insuranceId} type changed from ${previousType} to Termination by user ${req.user._id}`);
     
     res.json({
       success: true,
-      message: 'Insurance type updated to resel successfully',
+      message: 'Insurance type updated to Termination successfully',
       insurance: {
         ...updatedInsurance.toObject(),
         clientName: updatedInsurance.client ? 
@@ -381,6 +501,76 @@ const changeInsuranceTypeToResel = async (req, res) => {
   }
 };
 
+/**
+ * Process a refund for an insurance policy
+ * @route POST /api/insurances/:id/refund
+ * @access Private
+ */
+const processRefund = async (req, res) => {
+  try {
+    const { id: insuranceId } = req.params;
+    const { refundAmount, refundMethod, refundReason } = req.body;
+    
+    // Validate user authentication
+    if (!req.user._id) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+    
+    // Validate input
+    if (!refundAmount || refundAmount <= 0) {
+      return res.status(400).json({ message: 'Valid refund amount is required' });
+    }
+    
+    // Find the insurance
+    const insurance = await Insurance.findById(insuranceId);
+    
+    if (!insurance) {
+      return res.status(404).json({ message: 'Insurance not found' });
+    }
+    
+    // Find all payments for this insurance to calculate the total paid
+    const payments = await Payment.find({ insurance: insuranceId });
+    const totalPaid = payments.reduce((sum, payment) => sum + (payment.amount > 0 ? payment.amount : 0), 0);
+    
+    // Validate that refund is not greater than total paid
+    if (refundAmount > totalPaid) {
+      return res.status(400).json({ 
+        message: `Refund amount (${refundAmount}) cannot exceed total paid amount (${totalPaid})`,
+      });
+    }
+    
+    // Find the count of existing payments for this insurance
+    const nextAdvanceNumber = payments.length + 1;
+    
+    // Create a payment record with negative amount (to represent a refund)
+    const refundPayment = await Payment.create({
+      insurance: insuranceId,
+      advanceNumber: nextAdvanceNumber,
+      paymentDate: new Date(),
+      amount: -Math.abs(refundAmount), // Ensure negative amount
+      paymentMethod: refundMethod || 'cash',
+      reference: 'Refund',
+      notes: refundReason || 'Client requested refund'
+    });
+    
+    res.status(201).json({
+      success: true,
+      message: 'Refund processed successfully',
+      payment: refundPayment
+    });
+  } catch (error) {
+    console.error('Error processing refund:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error processing refund', 
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Server error'
+    });
+  }
+};
+
+
+// Don't forget to export this function in the module.exports
+
 module.exports = {
   getInsurances,
   createInsurance,
@@ -391,5 +581,6 @@ module.exports = {
   getInsuranceStats,
   renewInsurance,
   cancelInsurance,
-  changeInsuranceTypeToResel
+  changeInsuranceTypeToResel,
+  processRefund
 };

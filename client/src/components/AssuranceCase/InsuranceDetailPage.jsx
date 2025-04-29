@@ -17,8 +17,10 @@ import {
   getInsuranceById, 
   getInsuranceDocuments, 
   getInsurancePayments,
-  changeInsuranceTypeToResel 
+  changeInsuranceTypeToResel, 
+  cancelInsurance
 } from '../../service/insuranceservice';
+import CancelModal from './CancelModal';
 
 export default function InsuranceDetailPage() {
   const { insuranceId } = useParams();
@@ -29,7 +31,8 @@ export default function InsuranceDetailPage() {
   const [modals, setModals] = useState({
     payment: false,
     document: false,
-    typeChange: false
+    typeChange: false,
+    cancel: false,
   });
   const [status, setStatus] = useState({
     loading: false,
@@ -82,14 +85,57 @@ export default function InsuranceDetailPage() {
   };
 
   // Handle changing insurance type to resel
-  const handleChangeTypeToResel = async (insuranceId) => {
+  const handleChangeTypeToResel = async (insuranceId, refundData = null) => {
     try {
-      const updatedInsurance = await changeInsuranceTypeToResel(insuranceId);
+      // If refund data is provided, process the refund
+      if (refundData) {
+        // Process the refund first
+        console.log("Processing refund:", refundData);
+        // You would typically have a separate API call to process the refund
+        // await processInsuranceRefund(insuranceId, refundData);
+      }
+      
+      // Then change the insurance type
+      const updatedInsurance = await changeInsuranceTypeToResel(insuranceId, refundData);
       setInsurance(updatedInsurance);
+      
+      // Refresh payments data as well
+      const paymentsData = await getInsurancePayments(insuranceId);
+      setPayments(paymentsData);
+      
       return updatedInsurance;
     } catch (error) {
       console.error("Error changing insurance type:", error);
       throw error;
+    }
+  };
+  
+  // 
+  const handleCancelInsurance = async (insuranceId, refundData) => {
+    try {
+      // Show loading state if needed
+      setStatus(prev => ({ ...prev, loading: true }));
+      
+      // Call the API to cancel the insurance
+      const result = await cancelInsurance(insuranceId, refundData);
+      
+      // Refresh insurance data to show updated status
+      await fetchInsuranceData();
+      
+      // Show success notification (you could add a toast notification here)
+      console.log("Insurance canceled successfully", result);
+      
+      return result;
+    } catch (error) {
+      console.error("Error canceling insurance:", error);
+      // Show error notification
+      setStatus(prev => ({ 
+        ...prev, 
+        error: "Failed to cancel insurance. Please try again." 
+      }));
+      throw error;
+    } finally {
+      setStatus(prev => ({ ...prev, loading: false }));
     }
   };
 
@@ -195,12 +241,17 @@ export default function InsuranceDetailPage() {
   }
 
   const paymentStatus = getPaymentStatus();
+  
+  // Check if insurance is canceled or resel
+  const isCanceled = insurance.status === 'Canceled';
+  const isResel = insurance.status === 'Termination';
+  const isReadOnly = isCanceled || isResel;
 
   // Helper function to determine row background color based on insurance type and status
   const getRowBackgroundClass = () => {
-    if (insurance.insuranceType === 'resel') {
+    if (isResel) {
       return 'bg-yellow-50';
-    } else if (insurance.status === 'canceled') {
+    } else if (isCanceled) {
       return 'bg-red-50';
     }
     return '';
@@ -233,29 +284,45 @@ export default function InsuranceDetailPage() {
             Edit Insurance
           </button>
           
-          <button
-            className="inline-flex items-center px-3 py-2 border border-[#1E265F] shadow-sm text-sm font-medium rounded-md text-white bg-[#1E265F] hover:bg-[#272F65] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1E265F]"
-            onClick={() => navigate(`/assurance-cases/${insuranceId}/payments`)}
-          >
-            <CreditCardIcon className="h-4 w-4 mr-2" />
-            Manage Payments
-          </button>
+          {/* Only show Manage Payments button if insurance is not canceled or resel */}
+          {!isReadOnly && (
+            <button
+              className="inline-flex items-center px-3 py-2 border border-[#1E265F] shadow-sm text-sm font-medium rounded-md text-white bg-[#1E265F] hover:bg-[#272F65] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1E265F]"
+              onClick={() => navigate(`/assurance-cases/${insuranceId}/payments`)}
+            >
+              <CreditCardIcon className="h-4 w-4 mr-2" />
+              Manage Payments
+            </button>
+          )}
           
-          {/* New button for changing type to resel */}
-          <button
-            className="inline-flex items-center px-3 py-2 border border-yellow-500 shadow-sm text-sm font-medium rounded-md text-white bg-yellow-500 hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
-            onClick={() => toggleModal('typeChange', true)}
-          >
-            <ExclamationTriangleIcon className="h-4 w-4 mr-2" />
-            Change to Resel
-          </button>
+          {/* Only show Change to Resel button if insurance is not already resel or canceled */}
+          {!isReadOnly && (
+            <button
+              className="inline-flex items-center px-3 py-2 border border-yellow-500 shadow-sm text-sm font-medium rounded-md text-white bg-yellow-500 hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
+              onClick={() => toggleModal('typeChange', true)}
+            >
+              <ExclamationTriangleIcon className="h-4 w-4 mr-2" />
+              Change to Resel
+            </button>
+          )}
+          
+          {/* Only show Cancel Insurance button if insurance is not already canceled or resel */}
+          {!isReadOnly && (
+            <button
+              className="inline-flex items-center px-3 py-2 border border-red-500 shadow-sm text-sm font-medium rounded-md text-white bg-red-500 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              onClick={() => toggleModal('cancel', true)}
+            > 
+              <ExclamationTriangleIcon className="h-4 w-4 mr-2" />
+              Cancel Insurance
+            </button>
+          )}
         </div>
       </div>
 
       {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* insurance Information */}
-        <div className={`lg:col-span-2 bg-white rounded-lg shadow overflow-hidden ${insurance.insuranceType === 'resel' ? 'border-l-4 border-yellow-400' : insurance.status === 'canceled' ? 'border-l-4 border-red-400' : ''}`}>
+        <div className={`lg:col-span-2 bg-white rounded-lg shadow overflow-hidden ${isResel ? 'border-l-4 border-yellow-400' : isCanceled ? 'border-l-4 border-red-400' : ''}`}>
           <div className="px-6 py-5 border-b border-gray-200">
             <h2 className="text-lg font-medium text-gray-900">Insurance Information</h2>
           </div>
@@ -264,7 +331,7 @@ export default function InsuranceDetailPage() {
               <div>
                 <dt className="text-sm font-medium text-gray-500">Insurance Type</dt>
                 <dd className="mt-1">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${insurance.insuranceType === 'resel' ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'}`}>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${isResel ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'}`}>
                     {insurance.insuranceType}
                   </span>
                 </dd>
@@ -311,7 +378,7 @@ export default function InsuranceDetailPage() {
               </div>
 
               <div className="mt-1">
-                {insurance.status === 'canceled' ? (
+                {isCanceled ? (
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                     <ExclamationTriangleIcon className="h-3.5 w-3.5 mr-1" />
                     Canceled
@@ -321,10 +388,10 @@ export default function InsuranceDetailPage() {
                     <ExclamationTriangleIcon className="h-3.5 w-3.5 mr-1" />
                     Expired
                   </span>
-                ) : insurance.insuranceType === 'resel' ? (
+                ) : isResel ? (
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                     <ExclamationTriangleIcon className="h-3.5 w-3.5 mr-1" />
-                    Resel
+                    Termination
                   </span>
                 ) : (
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -343,7 +410,7 @@ export default function InsuranceDetailPage() {
         </div>
 
         {/* Payment Status */}
-        <div className={`bg-white rounded-lg shadow overflow-hidden ${insurance.insuranceType === 'resel' ? 'border-l-4 border-yellow-400' : insurance.status === 'canceled' ? 'border-l-4 border-red-400' : ''}`}>
+        <div className={`bg-white rounded-lg shadow overflow-hidden ${isResel ? 'border-l-4 border-yellow-400' : isCanceled ? 'border-l-4 border-red-400' : ''}`}>
           <div className="px-6 py-5 border-b border-gray-200">
             <h2 className="text-lg font-medium text-gray-900">Payment Status</h2>
           </div>
@@ -395,20 +462,22 @@ export default function InsuranceDetailPage() {
                 </dl>
               </div>
 
-              <button
-                className="mt-4 w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#1E265F] hover:bg-[#272F65] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1E265F]"
-                onClick={() => navigate(`/assurance-cases/${insuranceId}/payments`)}
-                disabled={insurance.status === 'canceled' || insurance.insuranceType === 'resel'}
-              >
-                <CreditCardIcon className="h-4 w-4 mr-2" />
-                Manage Payments
-              </button>
+              {/* Only show Manage Payments button if insurance is not canceled or resel */}
+              {!isReadOnly && (
+                <button
+                  className="mt-4 w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#1E265F] hover:bg-[#272F65] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1E265F]"
+                  onClick={() => navigate(`/assurance-cases/${insuranceId}/payments`)}
+                >
+                  <CreditCardIcon className="h-4 w-4 mr-2" />
+                  Manage Payments
+                </button>
+              )}
             </div>
           </div>
         </div>
 
         {/* Documents Section */}
-        <div className={`lg:col-span-3 bg-white rounded-lg shadow overflow-hidden ${insurance.insuranceType === 'resel' ? 'border-l-4 border-yellow-400' : insurance.status === 'canceled' ? 'border-l-4 border-red-400' : ''}`}>
+        <div className={`lg:col-span-3 bg-white rounded-lg shadow overflow-hidden ${isResel ? 'border-l-4 border-yellow-400' : isCanceled ? 'border-l-4 border-red-400' : ''}`}>
           <div className="px-6 py-5 border-b border-gray-200 flex justify-between items-center">
             <h2 className="text-lg font-medium text-gray-900">Insurance Documents</h2>
             <button
@@ -464,7 +533,7 @@ export default function InsuranceDetailPage() {
         </div>
 
         {/* Payments History */}
-        <div className={`lg:col-span-3 bg-white rounded-lg shadow overflow-hidden ${insurance.insuranceType === 'resel' ? 'border-l-4 border-yellow-400' : insurance.status === 'canceled' ? 'border-l-4 border-red-400' : ''}`}>
+        <div className={`lg:col-span-3 bg-white rounded-lg shadow overflow-hidden ${isResel ? 'border-l-4 border-yellow-400' : isCanceled ? 'border-l-4 border-red-400' : ''}`}>
           <div className="px-6 py-5 border-b border-gray-200">
             <h2 className="text-lg font-medium text-gray-900">Payment History</h2>
           </div>
@@ -504,9 +573,9 @@ export default function InsuranceDetailPage() {
                       let rowClass = "hover:bg-gray-50";
                       
                       // Apply special styling based on insurance type/status
-                      if (insurance.insuranceType === 'resel') {
+                      if (isResel) {
                         rowClass = "bg-yellow-50 hover:bg-yellow-100";
-                      } else if (insurance.status === 'canceled') {
+                      } else if (isCanceled) {
                         rowClass = "bg-red-50 hover:bg-red-100";
                       }
                       
@@ -528,11 +597,11 @@ export default function InsuranceDetailPage() {
                             {payment.paymentMethod || '-'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            {insurance.insuranceType === 'resel' ? (
+                            {isResel ? (
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                Resel
+                                Termination
                               </span>
-                            ) : insurance.status === 'canceled' ? (
+                            ) : isCanceled ? (
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                                 Canceled
                               </span>
@@ -578,8 +647,19 @@ export default function InsuranceDetailPage() {
           onClose={() => toggleModal('typeChange', false)}
           onConfirm={handleChangeTypeToResel}
           insuranceId={insuranceId}
-          currentType={insurance.insuranceType}
+          currentType={insurance.status}
+          payments={payments} // Pass the payments data
         />  
+      )}
+{/* Cancel Insurance Modal */}
+      {modals.cancel && (
+        <CancelModal
+          isOpen={modals.cancel}
+          onClose={() => toggleModal('cancel', false)}
+          insuranceId={insuranceId}
+          onConfirm={handleCancelInsurance}
+          onInsuranceCanceled={fetchInsuranceData} // Refresh data after cancellation
+        />
       )}
     </div>
   );
