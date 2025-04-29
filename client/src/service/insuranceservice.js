@@ -236,20 +236,25 @@ export const renewInsurance = async (insuranceId) => {
 // Additional functions to add to insuranceservice.js
 
 // Change insurance type to resel with optional refund
+// service/insuranceService.js
 export const changeInsuranceTypeToResel = async (insuranceId, refundData = null) => {
   try {
-    if (!insuranceId) {
-      throw new Error("Insurance ID is required");
+    // Convert refund amount to number if present
+    if (refundData) {
+      refundData = {
+        ...refundData,
+        refundAmount: Number(refundData.refundAmount)
+      };
     }
     
-    const response = await axiosClient.put(`/insurances/${insuranceId}/type-resel`, refundData);
+    const response = await axiosClient.put(
+      `/insurances/${insuranceId}/type-resel`,
+      refundData
+    );
     return response.data;
   } catch (error) {
-    console.error(`Error changing insurance type ${insuranceId} to resel:`, error);
-    
-    // Enhance error message based on response if available
-    const errorMessage = error.response?.data?.message || 'Failed to change insurance type';
-    throw new Error(errorMessage);
+    console.error("Error changing insurance type:", error);
+    throw error;
   }
 };
 // Process refund for an insurance

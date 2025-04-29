@@ -373,15 +373,7 @@ export default function AssuranceList() {
             </p>
           </div>
 
-          <div className="bg-white p-4 rounded-lg shadow">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium text-gray-500">Total HT</h3>
-              <span className="text-sm text-gray-400">{data.totals.count} Insurance</span>
-            </div>
-            <p className="mt-2 text-2xl font-semibold text-blue-600">
-              {data.totals.primeHT?.toFixed(2)} MAD
-            </p>
-          </div>
+         
 
           <div className="bg-white p-4 rounded-lg shadow">
             <div className="flex items-center justify-between">

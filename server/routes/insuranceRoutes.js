@@ -39,8 +39,12 @@ router.route('/:id')
 router.post('/:id/renew', protect,renewInsurance);    // Changed path and controller
 router.put('/:id/cancel', protect,cancelInsurance);  // Changed path and controller
 
-router.put('/:id/type-resel', protect ,changeInsuranceTypeToResel);
-router.post('/:id/refund',protect, processRefund);
+router.put(
+  '/:id/type-resel',
+  protect, // Add authentication middleware
+  changeInsuranceTypeToResel
+);
+router.post('/:id/refund', processRefund);
 
 
 

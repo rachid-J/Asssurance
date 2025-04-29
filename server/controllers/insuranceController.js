@@ -224,16 +224,14 @@ const getInsuranceTotals = async (req, res) => {
         $group: {
           _id: null,
           count: { $sum: 1 },
-          totalHT: { $sum: "$primeHT" },
           totalTTC: { $sum: "$primeTTC" }
         }
       }
     ]);
 
-    const result = aggregation[0] || { count: 0, totalHT: 0, totalTTC: 0 };
+    const result = aggregation[0] || { count: 0, totalTTC: 0 };
     res.json({
       count: result.count,
-      primeHT: result.totalHT,
       primeTTC: result.totalTTC
     });
   } catch (error) {
@@ -418,94 +416,68 @@ const cancelInsurance = async (req, res) => {
 };
 
 
+// controllers/insuranceController.js
 const changeInsuranceTypeToResel = async (req, res) => {
   try {
     const insuranceId = req.params.id;
-    const refundData = req.body; // This may contain refund information
-    
-    // Validate user authentication
-    if (!req.user._id) {
+    const refundData = req.body;
+
+    // Add authentication check
+    if (!req.user?._id) {
       return res.status(401).json({ message: 'Authentication required' });
     }
 
-    // Find the insurance policy
+    // First check if insurance exists
     const insurance = await Insurance.findById(insuranceId);
-    
     if (!insurance) {
-      return res.status(404).json({ message: 'Insurance not found' });
-    }
-    
-    // Check if the insurance is already of type "resel" (Termination)
-    if (insurance.status === 'Termination') {
-      return res.status(400).json({ 
-        message: 'Insurance is already of type Termination',
-        insurance
+      return res.status(404).json({ 
+        success: false,
+        message: 'Insurance not found' 
       });
     }
-    
-    // Store the previous type for logging
-    const previousType = insurance.status;
-    
-    // Update the insurance type to "resel" (Termination)
+
+    // 2. Update insurance status
     const updatedInsurance = await Insurance.findByIdAndUpdate(
       insuranceId,
       { 
-        status: 'Termination',
-        updatedBy: req.user._id 
+        status: 'Termination', 
+        updatedBy: req.user._id,
+        terminationDate: new Date() // Add termination date
       },
-      { new: true, runValidators: true }
-    )
-    .populate('client', 'title name firstName')
-    .populate('vehicle', 'make model registrationNumber');
-    
-    // If refund data was provided, create a payment record with negative amount (refund)
-    if (refundData && refundData.refundAmount > 0) {
-      // Find the count of existing payments for this insurance
-      const existingPayments = await Payment.find({ insurance: insuranceId });
-      const nextAdvanceNumber = existingPayments.length + 1;
-      
-      // Create a payment record with negative amount (to represent a refund)
-      const refundPayment = await Payment.create({
-        insurance: insuranceId,
-        advanceNumber: nextAdvanceNumber,
-        paymentDate: new Date(),
-        amount: -Math.abs(refundData.refundAmount), // Ensure negative amount
-        paymentMethod: refundData.refundMethod || 'cash',
-        reference: 'Refund - Insurance converted to resel',
-        notes: refundData.refundReason || 'Insurance converted to resel/termination'
-      });
+      { new: true, runValidators: true } // Add validation
+    );
 
-      console.log(`Refund payment of ${refundData.refundAmount} processed for insurance ${insuranceId}`);
-    }
-    
-    console.log(`Insurance ${insuranceId} type changed from ${previousType} to Termination by user ${req.user._id}`);
-    
-    res.json({
-      success: true,
-      message: 'Insurance type updated to Termination successfully',
-      insurance: {
-        ...updatedInsurance.toObject(),
-        clientName: updatedInsurance.client ? 
-          `${updatedInsurance.client.title} ${updatedInsurance.client.firstName} ${updatedInsurance.client.name}` : '',
-        vehicleInfo: updatedInsurance.vehicle ?
-          `${updatedInsurance.vehicle.make} ${updatedInsurance.vehicle.model} (${updatedInsurance.vehicle.registrationNumber})` : ''
+    // Process refund if applicable
+    if (refundData && refundData.refundAmount) {
+      if (typeof refundData.refundAmount !== 'number' || refundData.refundAmount <= 0) {
+        return res.status(400).json({ 
+          success: false,
+          message: 'Invalid refund amount' 
+        });
       }
+      
+      if (refundData.refundAmount > totalPaid) {
+        return res.status(400).json({
+          success: false,
+          message: `Refund amount exceeds total paid amount (${totalPaid})`
+        });
+      }
+    }
+
+    res.json({ 
+      success: true,
+      insurance: updatedInsurance 
     });
   } catch (error) {
     console.error('Error changing insurance type:', error);
     res.status(500).json({ 
       success: false,
-      message: 'Error changing insurance type', 
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Server error'
+      message: 'Server error' 
     });
   }
 };
 
-/**
- * Process a refund for an insurance policy
- * @route POST /api/insurances/:id/refund
- * @access Private
- */
+
 const processRefund = async (req, res) => {
   try {
     const { id: insuranceId } = req.params;

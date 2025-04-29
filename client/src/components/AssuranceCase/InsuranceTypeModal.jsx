@@ -23,7 +23,13 @@ export default function InsuranceTypeModal({ isOpen, onClose, onConfirm, insuran
   const handleConfirmTypeChange = async (refundData) => {
     try {
       setLoading(true);
-      await onConfirm(insuranceId, refundData);
+      // Ensure we pass numeric values
+      const processedData = refundData ? {
+        ...refundData,
+        refundAmount: Number(refundData.refundAmount)
+      } : null;
+      
+      await onConfirm(insuranceId, processedData);
       onClose();
     } catch (error) {
       console.error("Error changing insurance type:", error);

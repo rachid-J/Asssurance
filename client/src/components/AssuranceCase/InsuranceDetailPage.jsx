@@ -85,27 +85,17 @@ export default function InsuranceDetailPage() {
   };
 
   // Handle changing insurance type to resel
-  const handleChangeTypeToResel = async (insuranceId, refundData = null) => {
+  const handleChangeTypeToResel = async (insuranceId, refundData) => {
     try {
-      // If refund data is provided, process the refund
-      if (refundData) {
-        // Process the refund first
-        console.log("Processing refund:", refundData);
-        // You would typically have a separate API call to process the refund
-        // await processInsuranceRefund(insuranceId, refundData);
-      }
-      
-      // Then change the insurance type
       const updatedInsurance = await changeInsuranceTypeToResel(insuranceId, refundData);
-      setInsurance(updatedInsurance);
       
-      // Refresh payments data as well
+      // Refresh local data
+      setInsurance(updatedInsurance);
       const paymentsData = await getInsurancePayments(insuranceId);
       setPayments(paymentsData);
       
-      return updatedInsurance;
     } catch (error) {
-      console.error("Error changing insurance type:", error);
+      console.error("Error changing type:", error);
       throw error;
     }
   };
@@ -248,14 +238,7 @@ export default function InsuranceDetailPage() {
   const isReadOnly = isCanceled || isResel;
 
   // Helper function to determine row background color based on insurance type and status
-  const getRowBackgroundClass = () => {
-    if (isResel) {
-      return 'bg-yellow-50';
-    } else if (isCanceled) {
-      return 'bg-red-50';
-    }
-    return '';
-  };
+
 
   return (
     <div className="p-4 sm:p-6">
@@ -322,92 +305,96 @@ export default function InsuranceDetailPage() {
       {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* insurance Information */}
-        <div className={`lg:col-span-2 bg-white rounded-lg shadow overflow-hidden ${isResel ? 'border-l-4 border-yellow-400' : isCanceled ? 'border-l-4 border-red-400' : ''}`}>
-          <div className="px-6 py-5 border-b border-gray-200">
-            <h2 className="text-lg font-medium text-gray-900">Insurance Information</h2>
+        {/* insurance Information */}
+<div className={`lg:col-span-2 bg-white rounded-lg shadow overflow-hidden ${isResel ? 'border-l-4 border-yellow-400' : isCanceled ? 'border-l-4 border-red-400' : ''}`}>
+  <div className="px-6 py-5 border-b border-gray-200">
+    <h2 className="text-lg font-medium text-gray-900">Insurance Information</h2>
+  </div>
+  <div className="px-6 py-5">
+    <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
+      {/* Insurance Type */}
+      <div>
+        <dt className="text-sm font-medium text-gray-500">Insurance Type</dt>
+        <dd className="mt-1">
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${isResel ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'}`}>
+            {insurance.insuranceType}
+          </span>
+        </dd>
+      </div>
+
+      {/* Usage */}
+      <div>
+        <dt className="text-sm font-medium text-gray-500">Usage</dt>
+        <dd className="mt-1 text-sm text-gray-900">{insurance.usage}</dd>
+      </div>
+
+      {/* Start Date */}
+      <div>
+        <dt className="text-sm font-medium text-gray-500">Start Date</dt>
+        <dd className="mt-1 text-sm text-gray-900">
+          <div className="flex items-center">
+            <CalendarIcon className="h-4 w-4 text-gray-400 mr-1.5" />
+            {new Date(insurance.startDate).toLocaleDateString('en-GB')}
           </div>
-          <div className="px-6 py-5">
-            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Insurance Type</dt>
-                <dd className="mt-1">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${isResel ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'}`}>
-                    {insurance.insuranceType}
-                  </span>
-                </dd>
-              </div>
+        </dd>
+      </div>
 
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Usage</dt>
-                <dd className="mt-1 text-sm text-gray-900">{insurance.usage}</dd>
-              </div>
-
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Start Date</dt>
-                <dd className="mt-1 text-sm text-gray-900">
-                  <div className="flex items-center">
-                    <CalendarIcon className="h-4 w-4 text-gray-400 mr-1.5" />
-                    {new Date(insurance.startDate).toLocaleDateString('en-GB')}
-                  </div>
-                </dd>
-              </div>
-
-              <div>
-                <dt className="text-sm font-medium text-gray-500">End Date</dt>
-                <dd className="mt-1 text-sm text-gray-900">
-                  <div className="flex items-center">
-                    <CalendarIcon className="h-4 w-4 text-gray-400 mr-1.5" />
-                    {insurance.endDate ? new Date(insurance.endDate).toLocaleDateString('en-GB') : 'N/A'}
-                  </div>
-                </dd>
-              </div>
-
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Prime HT</dt>
-                <dd className="mt-1 text-sm font-medium text-gray-900">{insurance.primeHT?.toFixed(2)} MAD</dd>
-              </div>
-
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Prime TTC</dt>
-                <dd className="mt-1 text-sm font-medium text-gray-900">{insurance.primeTTC?.toFixed(2)} MAD</dd>
-              </div>
-
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Prime Actuel</dt>
-                <dd className="mt-1 text-sm font-medium text-gray-900">{insurance.primeActuel?.toFixed(2)} MAD</dd>
-              </div>
-
-              <div className="mt-1">
-                {isCanceled ? (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                    <ExclamationTriangleIcon className="h-3.5 w-3.5 mr-1" />
-                    Canceled
-                  </span>
-                ) : insurance.status === 'expired' ? (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                    <ExclamationTriangleIcon className="h-3.5 w-3.5 mr-1" />
-                    Expired
-                  </span>
-                ) : isResel ? (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                    <ExclamationTriangleIcon className="h-3.5 w-3.5 mr-1" />
-                    Termination
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    <CheckCircleIcon className="h-3.5 w-3.5 mr-1" />
-                    Active
-                  </span>
-                )}
-              </div>
-            </dl>
-
-            <div className="mt-6">
-              <h3 className="text-sm font-medium text-gray-500">Comment</h3>
-              <p className="mt-1 text-sm text-gray-900">{insurance.comment || 'No comment provided.'}</p>
-            </div>
+      {/* End Date */}
+      <div>
+        <dt className="text-sm font-medium text-gray-500">End Date</dt>
+        <dd className="mt-1 text-sm text-gray-900">
+          <div className="flex items-center">
+            <CalendarIcon className="h-4 w-4 text-gray-400 mr-1.5" />
+            {insurance.endDate ? new Date(insurance.endDate).toLocaleDateString('en-GB') : 'N/A'}
           </div>
-        </div>
+        </dd>
+      </div>
+
+      {/* Prime TTC */}
+      <div>
+        <dt className="text-sm font-medium text-gray-500">Prime TTC</dt>
+        <dd className="mt-1 text-sm font-medium text-gray-900">{insurance.primeTTC?.toFixed(2)} MAD</dd>
+      </div>
+
+      {/* Prime Actuel */}
+      <div>
+        <dt className="text-sm font-medium text-gray-500">Prime Actuel</dt>
+        <dd className="mt-1 text-sm font-medium text-gray-900">{insurance.primeActuel?.toFixed(2)} MAD</dd>
+      </div>
+
+      {/* Status */}
+      <div className="mt-1">
+        {isCanceled ? (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+            <ExclamationTriangleIcon className="h-3.5 w-3.5 mr-1" />
+            Canceled
+          </span>
+        ) : insurance.status === 'expired' ? (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+            <ExclamationTriangleIcon className="h-3.5 w-3.5 mr-1" />
+            Expired
+          </span>
+        ) : isResel ? (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+            <ExclamationTriangleIcon className="h-3.5 w-3.5 mr-1" />
+            Termination
+          </span>
+        ) : (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+            <CheckCircleIcon className="h-3.5 w-3.5 mr-1" />
+            Active
+          </span>
+        )}
+      </div>
+    </dl>
+
+    {/* Comment */}
+    <div className="mt-6">
+      <h3 className="text-sm font-medium text-gray-500">Comment</h3>
+      <p className="mt-1 text-sm text-gray-900">{insurance.comment || 'No comment provided.'}</p>
+    </div>
+  </div>
+</div>
 
         {/* Payment Status */}
         <div className={`bg-white rounded-lg shadow overflow-hidden ${isResel ? 'border-l-4 border-yellow-400' : isCanceled ? 'border-l-4 border-red-400' : ''}`}>

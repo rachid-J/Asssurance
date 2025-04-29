@@ -30,10 +30,7 @@ const insuranceSchema = new mongoose.Schema({
         required: true
     },
     comment: String,
-    primeHT: {
-        type: Number,
-        required: true
-    },
+   
     primeTTC: {
         type: Number,
         required: true
@@ -52,7 +49,7 @@ const insuranceSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['Active', 'Expired', 'Canceled','Termination'],
+        enum: ['Active', 'Termination', 'Canceled', 'Expired'],
         default: 'Active'
     }
 }, { timestamps: true });
