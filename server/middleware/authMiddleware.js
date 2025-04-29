@@ -31,17 +31,7 @@ exports.protect = async (req, res, next) => {
   }
 };
 
-async function checkActiveUser(req, res, next) {
-  try {
-    const user = await User.findById(req.user.id);
-    if (!user || user.status !== 'Actif') {
-      return res.status(401).json({ message: 'User is not active' });
-    }
-    next();
-  } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
-  }
-}
+
 
 
 // Only allow admins

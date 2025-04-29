@@ -1,8 +1,8 @@
 import { axiosClient } from "./axiosClient";
 
-export const getVehicles = async () => {
+export const getVehicles = async (params = {}) => {
   try {
-    const response = await axiosClient.get('/vehicles');
+    const response = await axiosClient.get('/vehicles', { params });
     return response.data;
   } catch (error) {
     console.error('Error fetching vehicles:', error);
@@ -46,12 +46,12 @@ export const deleteVehicle = async (id) => {
   }
 }
 
-export const getVehicleByPolicyId = async (policyId) => {
+export const getVehicleByInsurancesId = async (InsurancesId) => {
   try {
-    const response = await axiosClient.get(`/vehicles/policy/${policyId}`);
+    const response = await axiosClient.get(`/vehicles/Insurances/${InsurancesId}`);
     return response.data;
   } catch (error) {
-    console.error('Error fetching vehicles by policy ID:', error);
+    console.error('Error fetching vehicles by Insurances ID:', error);
     throw error;
   }
 }

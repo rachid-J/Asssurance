@@ -1,4 +1,5 @@
 const Client = require('../models/Client');
+const User = require('../models/User');
 const Vehicle = require('../models/Vehicle');
 
 // Get all clients with advanced search
@@ -41,6 +42,11 @@ exports.getClients = async (req, res) => {
       filter.isDriver = false;
     }
     
+    // Added joinby filter
+    if (req.query.joinby) {
+      filter.joinby = req.query.joinby;
+    }
+    
     // Sort options
     const sort = {};
     if (req.query.sortBy) {
@@ -69,7 +75,6 @@ exports.getClients = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
 // Get single client with vehicles
 exports.getClient = async (req, res) => {
   try {
@@ -78,9 +83,9 @@ exports.getClient = async (req, res) => {
         path: 'vehicles',
         select: 'make model yearOfManufacture registrationNumber vehicleType',
         options: { sort: { createdAt: -1 } }
-  })
-   .populate({
-        path: 'policies',
+      })
+      .populate({
+        path: 'insurances', // Changed from policies
         options: { sort: { startDate: -1 } }
       });
 
@@ -89,7 +94,7 @@ exports.getClient = async (req, res) => {
     res.json({
       client: client.toObject({ virtuals: true }),
       vehicles: client.vehicles || [],
-      policies: client.policies || []
+      insurances: client.insurances || [] // Changed from policies
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -147,7 +152,8 @@ exports.createClient = async (req, res) => {
       licenseNumber,
       licenseCountry,
       licenseIssueDate: licenseIssueDate ? new Date(licenseIssueDate) : undefined,
-      clientType
+      clientType,
+      createdBy: req.user._id, // Assuming req.user is set by authentication middleware
     });
 
     const newClient = await client.save();
@@ -198,18 +204,28 @@ exports.deleteClient = async (req, res) => {
     const client = await Client.findById(req.params.id);
     if (!client) return res.status(404).json({ message: 'Client not found' });
 
-    // Check if client has vehicles
-    const hasVehicles = await Vehicle.exists({ clientId: client._id });
-    if (hasVehicles) {
-      // Soft delete - just mark as inactive
+    // Check for existing relationships
+    const [hasVehicles, hasInsurances] = await Promise.all([
+      Vehicle.exists({ clientId: client._id }),
+      Insurance.exists({ client: client._id })
+    ]);
+
+    if (hasVehicles || hasInsurances) {
+      // Soft delete if relationships exist
       client.active = false;
       await client.save();
-      res.json({ message: 'Client marked as inactive' });
-    } else {
-      // Hard delete
-      await client.deleteOne();
-      res.json({ message: 'Client deleted successfully' });
+      return res.json({ 
+        message: 'Client marked as inactive due to existing relationships',
+        relationships: {
+          vehicles: hasVehicles,
+          insurances: hasInsurances
+        }
+      });
     }
+
+    // Hard delete if no relationships
+    await client.deleteOne();
+    res.json({ message: 'Client deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

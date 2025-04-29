@@ -41,13 +41,15 @@ exports.createUser = async (req, res) => {
     }
   };
 
-exports.getUsers = async (req, res) => {
+  exports.getUsers = async (req, res) => {
     try {
-        // Get users excluding admins
+        // Get users excluding admins and password field
         const users = await User.find({ 
-            role: { $ne: 'admin' } // Exclude admin users
-        }).sort({ createdAt: -1 });
-        
+            role: { $ne: 'admin' } 
+        })
+        .select('-password -__v') // Exclude password and version key
+        .sort({ createdAt: -1 });
+
         res.json(users);
     } catch (error) {
         console.error('Error in getUsers:', error);

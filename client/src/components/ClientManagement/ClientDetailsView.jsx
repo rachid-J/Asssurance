@@ -5,7 +5,6 @@ import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { getClient } from '../../service/clientService';
 
 
-
 export const ClientDetailsView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -14,7 +13,7 @@ export const ClientDetailsView = () => {
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [policies, setPolicies] = useState([]);
+  const [insurances, setInsurances] = useState([]); // Changed from policies
   const [activeTab, setActiveTab] = useState('personal');
 
   useEffect(() => {
@@ -24,7 +23,7 @@ export const ClientDetailsView = () => {
         const response = await getClient(id);
         setClient(response.client);
         setVehicles(response.vehicles || []);
-        setPolicies(response.policies || []);
+        setInsurances(response.insurances || []); // Changed from policies
       } catch (error) {
         console.error('Error fetching client details:', error);
         setError('Failed to load client information. Please try again later.');
@@ -124,9 +123,9 @@ export const ClientDetailsView = () => {
           <LicenseInfoTab client={client} formatDate={formatDate} />
         )}
 
-        {activeTab === 'policy' && (
-          <PolicyTab 
-            policies={policies} 
+{activeTab === 'insurance' && ( // Changed from 'policy'
+          <InsuranceTab 
+            insurances={insurances} 
             clientId={id} 
             navigate={navigate} 
             formatDate={formatDate} 
@@ -169,9 +168,9 @@ import {
 import { NavigationTabs } from './Common/NavigationTabs';import { PersonalInfoTab } from './components/info/PersonalInfoTab';
 import { ContactDetailsTab } from './components/info/ContactDetailsTab';
 import { LicenseInfoTab } from './components/License/LicenseInfoTab';
-import { PolicyTab } from './components/policy/PolicyTab';
 import { VehiclesTab } from './components/vehicules/VehiclesTab';
 import { ClientHeader } from './Common/ClientHeader';
 import { LoadingSpinner } from './Common/LoadingSpinner';
 import { ErrorMessage } from './Common/ErrorMessage';
+import { InsuranceTab } from './components/Insurance/InsuranceTab';
 

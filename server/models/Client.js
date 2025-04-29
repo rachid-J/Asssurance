@@ -5,9 +5,9 @@ const clientSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Vehicle'
   }],
-  policies: [{
+  insurances: [{  // Changed from policies to insurances
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Policy'
+    ref: 'Insurance'  // Changed from Policy
   }],
  
   // Basic Information
@@ -25,6 +25,11 @@ const clientSchema = new mongoose.Schema({
     type: String,
     required: true,
     trim: true
+  },
+  joinby : {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
   },
   telephone: {
     type: String,

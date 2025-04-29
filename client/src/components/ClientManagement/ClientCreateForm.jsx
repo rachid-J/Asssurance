@@ -46,6 +46,15 @@ export const ClientCreateForm = () => {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+    
+    // Clear error for this field when it changes
+    if (errors[name]) {
+      setErrors(prev => {
+        const newErrors = {...prev};
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
   };
 
   const validateForm = () => {
@@ -60,6 +69,17 @@ export const ClientCreateForm = () => {
     if (formData.isDriver && !formData.licenseNumber) {
       newErrors.licenseNumber = 'License number is required for drivers';
     }
+    
+    // Validate email format if provided
+    if (formData.email && !/^\S+@\S+\.\S+$/.test(formData.email)) {
+      newErrors.email = 'Invalid email format';
+    }
+    
+    // Validate phone number format
+    if (formData.telephone && !/^\d{8,15}$/.test(formData.telephone.replace(/[\s-+()]/g, ''))) {
+      newErrors.telephone = 'Invalid phone number format';
+    }
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -79,6 +99,10 @@ export const ClientCreateForm = () => {
     }
   };
 
+  // Custom input class with increased height
+  const inputClass = "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm py-3";
+  const inputErrorClass = "mt-1 block w-full rounded-md border-red-500 ring-1 ring-red-500 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm py-3";
+
   return (
     <div className="p-4 sm:p-6 max-w-4xl mx-auto">
       {/* Header */}
@@ -87,6 +111,7 @@ export const ClientCreateForm = () => {
           <button
             onClick={() => navigate('/clients')}
             className="p-2 rounded-md hover:bg-gray-100"
+            aria-label="Go back to clients list"
           >
             <ArrowLeftIcon className="h-5 w-5" />
           </button>
@@ -97,8 +122,9 @@ export const ClientCreateForm = () => {
       {/* Form */}
       <form onSubmit={handleSubmit} className="bg-white shadow rounded-lg p-6">
         {errors.submit && (
-          <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-md">
-            {errors.submit}
+          <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-md border border-red-200">
+            <p className="font-medium">Error</p>
+            <p>{errors.submit}</p>
           </div>
         )}
         {/* Personal Information Section */}
@@ -132,14 +158,14 @@ export const ClientCreateForm = () => {
             {/* Title */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Title *
+                Title <span className="text-red-500">*</span>
               </label>
               <select
                 name="title"
                 value={formData.title}
                 onChange={handleInputChange}
                 required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm py-3"
               >
                 <option value="Mr">Mr</option>
                 <option value="Mme">Mme</option>
@@ -148,7 +174,7 @@ export const ClientCreateForm = () => {
             {/* First Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                First Name *
+                First Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -156,9 +182,7 @@ export const ClientCreateForm = () => {
                 value={formData.firstName}
                 onChange={handleInputChange}
                 required
-                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm ${
-                  errors.firstName ? 'border-red-500' : ''
-                }`}
+                className={errors.firstName ? inputErrorClass : inputClass}
               />
               {errors.firstName && (
                 <p className="mt-1 text-sm text-red-600">{errors.firstName}</p>
@@ -167,7 +191,7 @@ export const ClientCreateForm = () => {
             {/* Last Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Last Name *
+                Last Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -175,9 +199,7 @@ export const ClientCreateForm = () => {
                 value={formData.name}
                 onChange={handleInputChange}
                 required
-                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm ${
-                  errors.name ? 'border-red-500' : ''
-                }`}
+                className={errors.name ? inputErrorClass : inputClass}
               />
               {errors.name && (
                 <p className="mt-1 text-sm text-red-600">{errors.name}</p>
@@ -186,13 +208,14 @@ export const ClientCreateForm = () => {
             {/* ID Information */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                ID Type
+                ID Type <span className="text-red-500">*</span>
               </label>
               <select
                 name="idType"
                 value={formData.idType}
                 onChange={handleInputChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm"
+                required
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm py-3"
               >
                 <option value="CIN">CIN</option>
                 <option value="Passport">Passport</option>
@@ -201,7 +224,7 @@ export const ClientCreateForm = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                ID Number *
+                ID Number <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -209,9 +232,7 @@ export const ClientCreateForm = () => {
                 value={formData.idNumber}
                 onChange={handleInputChange}
                 required
-                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm ${
-                  errors.idNumber ? 'border-red-500' : ''
-                }`}
+                className={errors.idNumber ? inputErrorClass : inputClass}
               />
               {errors.idNumber && (
                 <p className="mt-1 text-sm text-red-600">{errors.idNumber}</p>
@@ -225,15 +246,15 @@ export const ClientCreateForm = () => {
               <input
                 type="text"
                 name="numCarte"
-                value={formData.numCarte}
+                value={formData.numCarte || ''}
                 onChange={handleInputChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm"
+                className={inputClass}
               />
             </div>
             {/* Date of Birth */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Date of Birth *
+                Date of Birth <span className="text-red-500">*</span>
               </label>
               <input
                 type="date"
@@ -241,9 +262,8 @@ export const ClientCreateForm = () => {
                 value={formData.dateOfBirth}
                 onChange={handleInputChange}
                 required
-                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm ${
-                  errors.dateOfBirth ? 'border-red-500' : ''
-                }`}
+                max={new Date().toISOString().split('T')[0]} // Prevent future dates
+                className={errors.dateOfBirth ? inputErrorClass : inputClass}
               />
               {errors.dateOfBirth && (
                 <p className="mt-1 text-sm text-red-600">{errors.dateOfBirth}</p>
@@ -252,14 +272,14 @@ export const ClientCreateForm = () => {
             {/* Gender */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Gender *
+                Gender <span className="text-red-500">*</span>
               </label>
               <select
                 name="gender"
                 value={formData.gender}
                 onChange={handleInputChange}
                 required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm py-3"
               >
                 <option value="Masculin">Masculin</option>
                 <option value="Féminin">Féminin</option>
@@ -274,7 +294,7 @@ export const ClientCreateForm = () => {
                 name="maritalStatus"
                 value={formData.maritalStatus}
                 onChange={handleInputChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm py-3"
               >
                 <option value="Célibataire">Célibataire</option>
                 <option value="Marié">Marié</option>
@@ -293,7 +313,7 @@ export const ClientCreateForm = () => {
                 value={formData.numberOfChildren}
                 onChange={handleInputChange}
                 min="0"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm"
+                className={inputClass}
               />
             </div>
             {/* Profession */}
@@ -306,7 +326,7 @@ export const ClientCreateForm = () => {
                 name="profession"
                 value={formData.profession}
                 onChange={handleInputChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm"
+                className={inputClass}
               />
             </div>
           </div>
@@ -320,17 +340,16 @@ export const ClientCreateForm = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Phone Number *
+                Phone Number <span className="text-red-500">*</span>
               </label>
               <input
                 type="tel"
                 name="telephone"
                 value={formData.telephone}
                 onChange={handleInputChange}
+                placeholder="e.g. +212 612345678"
                 required
-                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm ${
-                  errors.telephone ? 'border-red-500' : ''
-                }`}
+                className={errors.telephone ? inputErrorClass : inputClass}
               />
               {errors.telephone && (
                 <p className="mt-1 text-sm text-red-600">{errors.telephone}</p>
@@ -345,12 +364,16 @@ export const ClientCreateForm = () => {
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm"
+                placeholder="example@domain.com"
+                className={errors.email ? inputErrorClass : inputClass}
               />
+              {errors.email && (
+                <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+              )}
             </div>
             <div className="col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Address *
+                Address <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -358,9 +381,7 @@ export const ClientCreateForm = () => {
                 value={formData.address}
                 onChange={handleInputChange}
                 required
-                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm ${
-                  errors.address ? 'border-red-500' : ''
-                }`}
+                className={errors.address ? inputErrorClass : inputClass}
               />
               {errors.address && (
                 <p className="mt-1 text-sm text-red-600">{errors.address}</p>
@@ -375,12 +396,12 @@ export const ClientCreateForm = () => {
                 name="postalCode"
                 value={formData.postalCode}
                 onChange={handleInputChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm"
+                className={inputClass}
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                City *
+                City <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -388,9 +409,7 @@ export const ClientCreateForm = () => {
                 value={formData.city}
                 onChange={handleInputChange}
                 required
-                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm ${
-                  errors.city ? 'border-red-500' : ''
-                }`}
+                className={errors.city ? inputErrorClass : inputClass}
               />
               {errors.city && (
                 <p className="mt-1 text-sm text-red-600">{errors.city}</p>
@@ -406,13 +425,14 @@ export const ClientCreateForm = () => {
           </h2>
           <div className="flex items-center mb-4">
             <input
+              id="isDriver"
               type="checkbox"
               name="isDriver"
               checked={formData.isDriver}
               onChange={handleInputChange}
               className="h-4 w-4 text-[#1E265F] focus:ring-[#1E265F] rounded"
             />
-            <label className="ml-2 text-sm text-gray-700">
+            <label htmlFor="isDriver" className="ml-2 text-sm text-gray-700">
               This client is a driver
             </label>
           </div>
@@ -427,21 +447,20 @@ export const ClientCreateForm = () => {
                   name="licenseCategory"
                   value={formData.licenseCategory}
                   onChange={handleInputChange}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm"
+                  placeholder="e.g. B, C, D"
+                  className={inputClass}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  License Number
+                  License Number <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   name="licenseNumber"
                   value={formData.licenseNumber}
                   onChange={handleInputChange}
-                  className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm ${
-                    errors.licenseNumber ? 'border-red-500' : ''
-                  }`}
+                  className={errors.licenseNumber ? inputErrorClass : inputClass}
                 />
                 {errors.licenseNumber && (
                   <p className="mt-1 text-sm text-red-600">{errors.licenseNumber}</p>
@@ -456,7 +475,8 @@ export const ClientCreateForm = () => {
                   name="licenseCountry"
                   value={formData.licenseCountry}
                   onChange={handleInputChange}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm"
+                  placeholder="e.g. Morocco"
+                  className={inputClass}
                 />
               </div>
               <div>
@@ -468,27 +488,45 @@ export const ClientCreateForm = () => {
                   name="licenseIssueDate"
                   value={formData.licenseIssueDate}
                   onChange={handleInputChange}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1E265F] focus:ring-[#1E265F] sm:text-sm"
+                  max={new Date().toISOString().split('T')[0]} // Prevent future dates
+                  className={inputClass}
                 />
               </div>
             </div>
           )}
+        </div>
+        {/* Required Fields Note */}
+        <div className="mt-2 text-sm text-gray-500">
+          <span className="text-red-500">*</span> Required fields
         </div>
         {/* Form Actions */}
         <div className="mt-6 flex justify-end gap-4">
           <button
             type="button"
             onClick={() => navigate('/clients')}
-            className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1E265F]"
+            className="px-4 py-3 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1E265F]"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={isSubmitting}
-            className="px-4 py-2 bg-[#1E265F] text-white rounded-md shadow-sm text-sm font-medium hover:bg-[#272F65] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1E265F] disabled:opacity-50"
+            className="inline-flex items-center px-4 py-3 bg-[#1E265F] text-white rounded-md shadow-sm text-sm font-medium hover:bg-[#272F65] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1E265F] disabled:opacity-50"
           >
-            {isSubmitting ? 'Creating...' : 'Create Client'}
+            {isSubmitting ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Creating...
+              </>
+            ) : (
+              <>
+                <CheckIcon className="h-4 w-4 mr-1" />
+                Create Client
+              </>
+            )}
           </button>
         </div>
       </form>

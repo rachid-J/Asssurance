@@ -41,12 +41,11 @@ exports.getVehicles = async (req, res) => {
     
     // Execute query
     const vehicles = await Vehicle.find(query)
-      .sort({ [sortBy]: sortDirection })
-      .skip(skip)
-      .limit(parseInt(limit))
-      .populate('clientId', 'name firstName telephone') // Populate basic client info
-      .populate('policyId',"policyNumber"); // Populate policy info if needed
-    
+    .sort({ [sortBy]: sortDirection })
+    .skip(skip)
+    .limit(parseInt(limit))
+    .populate('clientId', 'name firstName telephone')
+    .populate('insuranceId','policyNumber'); // Changed from policyId
     // Count for pagination
     const totalCount = await Vehicle.countDocuments(query);
     
@@ -69,7 +68,7 @@ exports.getVehicle = async (req, res) => {
   try {
     const vehicle = await Vehicle.findById(req.params.id)
       .populate('clientId')
-      .populate('policyId', 'policyNumber'); // Populate policy info if needed
+      .populate('insuranceId','policyNumber'); // Changed from policyId
 
       
     if (!vehicle) return res.status(404).json({ message: 'Vehicle not found' });

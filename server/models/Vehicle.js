@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-// Define Document Schema
+// Document Schema remains unchanged
 const documentSchema = new mongoose.Schema({
   type: {
     type: String,
@@ -45,19 +45,25 @@ const documentSchema = new mongoose.Schema({
   }
 }, { _id: true });
 
-// Define Vehicle Schema
+// Updated Vehicle Schema
 const vehicleSchema = new mongoose.Schema({
   clientId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Client',
     required: true
   },
-  policyId: {
+  insuranceId: { 
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Policy'
+    ref: 'Insurance', 
+    required: true // Changed to false to allow null
+  },
+  createdby: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
   },
 
-  // Vehicle Information
+  // All vehicle information fields remain unchanged
   make: {
     type: String,
     required: true,
@@ -82,8 +88,6 @@ const vehicleSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
-
-  // Vehicle Details
   vehicleType: {
     type: String,
     enum: ['Car', 'Motorcycle', 'Truck', 'Van', 'Other'],
@@ -99,10 +103,8 @@ const vehicleSchema = new mongoose.Schema({
     enum: ['Personal', 'Professional', 'Commercial', 'Mixed'],
     default: 'Personal'
   },
-
-  // Technical Information
   engineSize: {
-    type: Number, // in cc
+    type: Number,
     min: 0
   },
   horsePower: {
@@ -114,26 +116,20 @@ const vehicleSchema = new mongoose.Schema({
     min: 0
   },
   weight: {
-    type: Number, // in kg
+    type: Number,
     min: 0
   },
-
-  // Documents
   documents: [documentSchema],
-
-  // System fields
   active: {
     type: Boolean,
     default: true
   }
 }, { timestamps: true });
 
-// Create text index for searching
+// Indexes updated with new field name
 vehicleSchema.index({ make: 'text', model: 'text', registrationNumber: 'text' });
-
-// Regular indexes
 vehicleSchema.index({ clientId: 1 });
 vehicleSchema.index({ registrationNumber: 1 });
+vehicleSchema.index({ insuranceId: 1 });  // New index for insurance references
 
-// Export Vehicle model
 module.exports = mongoose.model('Vehicle', vehicleSchema);

@@ -2,23 +2,25 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Auth } from './Auth/Auth';
 import Dashboard from './components/Dashboard/Dashboard';
 import Layout from './components/Common/Layout';
-import {ClientList} from './components/ClientManagement/ClientList';
-import AssuranceList from './components/AssuranceCase/AssuranceList';
-import PaymentsList from './components/Payments/PaymentsList';
-import DocumentsList from './components/Documents/DocumentsList';
 import { AuthLayout } from './Layouts/AuthLayout';
 import { MainLayout } from './Layouts/MainLayout';
 import { UserManagement } from './components/Users/UserManagement';
 import { useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import Notification from './shared/Notification';
-import PolicyListPage from './components/AssuranceCase/PolicyDetailPage';
-import { ClientDetailsView } from './components/ClientManagement/ClientDetailsView';
+import { NewInsuranceForm } from './components/AssuranceCase/NewInsuranceForm';
+import { ClientList } from './components/ClientManagement/ClientList';
 import { ClientCreateForm } from './components/ClientManagement/ClientCreateForm';
+import { ClientDetailsView } from './components/ClientManagement/ClientDetailsView';
 import { VehicleAddPage } from './components/ClientManagement/components/vehicules/VehicleAddPage';
-import { NewPolicyForm } from './components/AssuranceCase/NewPolicyForm';
-import VehicleDocumentsPage from './components/ClientManagement/components/vehicules/VehicleDocumentsPage';
-import AddDocumentPage from './components/ClientManagement/components/vehicules/AddDocumentPage';
+import  VehicleDocumentsPage  from './components/ClientManagement/components/vehicules/VehicleDocumentsPage';
+import  AddDocumentPage  from './components/ClientManagement/components/vehicules/AddDocumentPage';
+import  PaymentsList  from './components/Payments/PaymentsList';
+import  DocumentsList  from './components/Documents/DocumentsList';
+import  AssuranceList  from './components/AssuranceCase/AssuranceList';
+import  InsuranceDetailPage  from './components/AssuranceCase/InsuranceDetailPage';
+import PaymentPage from './components/AssuranceCase/PaymentPage';
+
 
 function App() {
   const [serverStatus, setServerStatus] = useState(null);
@@ -73,13 +75,14 @@ function App() {
             <Route path="clients/:id" element={<ClientDetailsView />} />
             <Route path="clients/:id/edit" element={<ClientCreateForm />} />
             <Route path="vehicles/new" element={<VehicleAddPage />} />
-            <Route path="/clients/:clientId/vehicles" element={<NewPolicyForm />} />
+            <Route path="/clients/:clientId/vehicles" element={<NewInsuranceForm />} />
             <Route path="/clients/:clientId/vehicles/:vehicleId/documents" element={<VehicleDocumentsPage />} />
-        <Route path="/clients/:clientId/vehicles/:vehicleId/documents/add" element={<AddDocumentPage />} />
-            <Route path="/clients/:clientId/policies/new" element={<NewPolicyForm />} />
+            <Route path="/clients/:clientId/vehicles/:vehicleId/documents/add" element={<AddDocumentPage />} />
+            <Route path="/clients/:clientId/insurances/new" element={<NewInsuranceForm />} />
             <Route path="clients/new" element={<ClientCreateForm />} />
             <Route path="assurance-cases" element={<AssuranceList />} />
-            <Route path="assurance-cases/:policyId" element={<PolicyListPage />} />
+            <Route path="assurance-cases/:insuranceId" element={<InsuranceDetailPage />} />
+            <Route path="assurance-cases/:insuranceId/payments" element={<PaymentPage />} />
             <Route path="payments" element={<PaymentsList />} />
             <Route path="documents" element={<DocumentsList />} />
             <Route path="user-management" element={<UserManagement />} />

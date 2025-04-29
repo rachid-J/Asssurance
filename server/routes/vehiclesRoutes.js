@@ -2,9 +2,11 @@ const express = require('express');
 const router = express.Router();
 const vehicleController = require('../controllers/vehicleController');
 const upload = require('../middleware/uploadMiddleware');
+const { protect } = require('../middleware/authMiddleware');
 
 router.get('/vehicles/stats', vehicleController.getVehicleStats);
 
+router.use(protect);
 // Vehicle routes
 router
   .route('/')

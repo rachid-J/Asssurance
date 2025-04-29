@@ -16,7 +16,7 @@ import {
   ArrowsUpDownIcon
 } from '@heroicons/react/24/outline';
 import { getClients } from '../../service/clientService';
-
+import { getUsers } from '../../service/Users';
 export const ClientList = () => {
   const navigate = useNavigate();
   
@@ -28,6 +28,7 @@ export const ClientList = () => {
     totalRecords: 0,
     limit: 10
   });
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filters, setFilters] = useState({
@@ -35,6 +36,7 @@ export const ClientList = () => {
     clientType: '',
     city: '',
     isDriver: '',
+    joinby: '', // Add this
     sortBy: 'createdAt',
     sortOrder: 'desc',
     page: 1,
@@ -64,7 +66,19 @@ export const ClientList = () => {
     
     fetchClients();
   }, [filters]);
-
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await getUsers();
+        console.log(response)
+        setUsers(response.data || []);
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      }
+    };
+    
+    fetchUsers();
+  }, []);
   const handleSearch = (e) => {
     setFilters({
       ...filters,
@@ -99,6 +113,7 @@ export const ClientList = () => {
       clientType: '',
       city: '',
       isDriver: '',
+      joinby: '', // Add this
       page: 1
     });
   };
@@ -190,6 +205,25 @@ export const ClientList = () => {
           {/* Expanded filter options */}
           {showFilters && (
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-4 gap-4">
+              <div>
+  <label htmlFor="joinby" className="block text-sm font-medium text-gray-700">
+    Added By
+  </label>
+  <select
+    id="joinby"
+    name="joinby"
+    value={filters.joinby || ''}
+    onChange={handleFilterChange}
+    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-[#1E265F] focus:border-[#1E265F] sm:text-sm rounded-md"
+  >
+    <option value="">All Users</option>
+    {users.map(user => (
+      <option key={user._id} value={user._id}>
+        {user.username} 
+      </option>
+    ))}
+  </select>
+</div>
               <div>
                 <label htmlFor="clientType" className="block text-sm font-medium text-gray-700">
                   Client Type

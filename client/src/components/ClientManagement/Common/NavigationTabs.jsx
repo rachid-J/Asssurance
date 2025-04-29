@@ -25,10 +25,10 @@ export const NavigationTabs = ({ activeTab, setActiveTab, isDriver, vehiclesCoun
             />
           )}
           <TabButton 
-            id="policy" 
+            id="insurance" 
             activeTab={activeTab} 
-            onClick={() => setActiveTab('policy')}
-            label="Policy Information"
+            onClick={() => setActiveTab('insurance')}
+            label="insurance Information"
           />
           <TabButton 
             id="vehicles" 

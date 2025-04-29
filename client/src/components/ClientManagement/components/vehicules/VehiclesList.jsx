@@ -3,6 +3,7 @@ import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { TruckIcon, PencilIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
 
+
 export const VehiclesList = ({ vehicles }) => {
   const navigate = useNavigate();
   const { clientId } = useParams();
@@ -15,8 +16,8 @@ export const VehiclesList = ({ vehicles }) => {
     navigate(`/clients/${clientId}/vehicles/${vehicleId}/documents`);
   };
 
-  const handleCreatePolicy = (vehicleId) => {
-    navigate(`policies/new?vehicleId=${vehicleId}`);
+  const handleCreateInsurance = (vehicleId) => {
+    navigate(`insurances/new?vehicleId=${vehicleId}`);
   };
 
   return (
@@ -70,10 +71,10 @@ export const VehiclesList = ({ vehicles }) => {
 
               <div className="pt-4 border-t border-gray-200">
                 <button
-                  onClick={() => handleCreatePolicy(vehicle._id)}
+                  onClick={() => handleCreateInsurance(vehicle._id)}
                   className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#1E265F] hover:bg-[#272F65] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1E265F]"
                 >
-                  Create Policy
+                  Create Insurance
                 </button>
               </div>
             </div>

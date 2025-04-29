@@ -26,25 +26,25 @@ export default function PaymentList() {
   const sortedPayments = [...payments].sort((a, b) => {
     const aValue = a[sortField]
     const bValue = b[sortField]
-    
+
     // Handle null/undefined values
     if (aValue === null || aValue === undefined) return 1
     if (bValue === null || bValue === undefined) return -1
-    
+
     // Date comparison
     if (sortField === 'paymentDate') {
       const dateA = new Date(aValue)
       const dateB = new Date(bValue)
       return sortDirection === 'asc' ? dateA - dateB : dateB - dateA
     }
-    
+
     // Numeric comparison
     if (['advanceNumber', 'amount'].includes(sortField)) {
       return sortDirection === 'asc' ? aValue - bValue : bValue - aValue
     }
-    
+
     // Default string comparison
-    return sortDirection === 'asc' 
+    return sortDirection === 'asc'
       ? aValue.toString().localeCompare(bValue.toString())
       : bValue.toString().localeCompare(aValue.toString())
   })
@@ -71,15 +71,15 @@ export default function PaymentList() {
     <div>
       <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
-          <h1 className="text-2xl font-semibold text-gray-900">Payments</h1>
+          <h1 className="text-2xl font-semibold text-gray-900">Insurance Payments</h1>
           <p className="mt-2 text-sm text-gray-700">
-            Payment records and installment tracking
+            Insurance payment records and installment tracking
           </p>
         </div>
         <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
           <button
             type="button"
-            className="block rounded-md bg-[#1E265F] px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-[#272F65] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1E265F]"
+            className="block rounded-md bg-[#1E265F] px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-[#272F65] focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-[#1E265F]"
           >
             <PlusIcon className="h-5 w-5 inline-block mr-1" />
             Add Payment
@@ -96,7 +96,7 @@ export default function PaymentList() {
             type="text"
             name="search"
             className="block w-full rounded-md border-0 py-3 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#1E265F] sm:text-sm sm:leading-6"
-            placeholder="Search by Policy ID..."
+            placeholder="Search by Policy Number..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -110,32 +110,32 @@ export default function PaymentList() {
               <table className="min-w-full divide-y divide-gray-300">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th 
-                      scope="col" 
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 cursor-pointer"
-                      onClick={() => handleSort('policyId')}
-                    >
-                      Policy ID
-                      <SortIcon field="policyId" />
+                    <th onClick={() => handleSort('policyNumber')}>
+                      Policy Number
+                      <SortIcon field="policyNumber" />
                     </th>
-                    <th 
-                      scope="col" 
+                    <th onClick={() => handleSort('insuranceId')}>
+                      Insurance ID
+                      <SortIcon field="insuranceId" />
+                    </th>
+                    <th
+                      scope="col"
                       className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 cursor-pointer"
                       onClick={() => handleSort('advanceNumber')}
                     >
                       Advance #
                       <SortIcon field="advanceNumber" />
                     </th>
-                    <th 
-                      scope="col" 
+                    <th
+                      scope="col"
                       className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 cursor-pointer"
                       onClick={() => handleSort('amount')}
                     >
                       Amount
                       <SortIcon field="amount" />
                     </th>
-                    <th 
-                      scope="col" 
+                    <th
+                      scope="col"
                       className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 cursor-pointer"
                       onClick={() => handleSort('paymentDate')}
                     >
@@ -148,15 +148,18 @@ export default function PaymentList() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
-                  {sortedPayments
-                    .filter(payment => 
-                      payment.policyId.toLowerCase().includes(searchTerm.toLowerCase())
-                    )
-                    .map((payment) => (
-                      <tr key={payment._id}>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {payment.policyId}
-                        </td>
+                {sortedPayments
+              .filter(payment => 
+                payment.policyNumber.toLowerCase().includes(searchTerm.toLowerCase())
+              )
+              .map((payment) => (
+                <tr key={payment._id}>
+                  <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                    {payment.policyNumber}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                    {payment.insuranceId}
+                  </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                           {payment.advanceNumber}
                         </td>
@@ -164,14 +167,14 @@ export default function PaymentList() {
                           {payment.amount.toFixed(2)} MAD
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {payment.paymentDate ? 
-                            new Date(payment.paymentDate).toLocaleDateString() : 
+                          {payment.paymentDate ?
+                            new Date(payment.paymentDate).toLocaleDateString() :
                             <span className="text-yellow-600">Pending</span>
                           }
                         </td>
                         <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                          <a 
-                            href="#" 
+                          <a
+                            href="#"
                             className="text-[#1E265F] hover:text-[#272F65]"
                           >
                             Edit

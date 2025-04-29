@@ -10,10 +10,12 @@ const connectDB = require('./config/db');
 const User = require('./models/User');
 const cookieParser = require('cookie-parser');
 const cookie = require('cookie');
-const policyRoutes = require('./routes/policyRoutes');
+const insuranceRoutes = require('./routes/insuranceRoutes');
 const clientRoutes = require('./routes/clientRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const vehicleRoutes = require('./routes/vehiclesRoutes');
+const documentRoutes = require('./routes/documentRoutes');
+
 // Load environment variables
 dotenv.config();
 
@@ -78,10 +80,11 @@ app.use((req, res, next) => {
 // Routes - These should come after adding io to the request
 app.use('/api/auth', authRoutes);
 app.use('/api/users', UserRoutes);
-app.use('/api/policies', policyRoutes);
+app.use('/api/insurances', insuranceRoutes);
 app.use('/api/clients', clientRoutes)
 app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/documents', documentRoutes);
 // Socket.io connection handler
 io.on('connection', (socket) => {
 

@@ -1,10 +1,9 @@
-// models/Payment.js
 const mongoose = require('mongoose');
 
 const paymentSchema = new mongoose.Schema({
-  policy: {
+  insurance: {  // Changed from policy to insurance
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Policy',
+    ref: 'Insurance',  // Changed reference to Insurance
     required: true
   },
   advanceNumber: {
@@ -29,10 +28,10 @@ const paymentSchema = new mongoose.Schema({
   notes: String
 });
 
-// Compound index to ensure unique advances per policy
-paymentSchema.index({ policy: 1, advanceNumber: 1 }, { unique: true });
+// Updated compound index for insurance references
+paymentSchema.index({ insurance: 1, advanceNumber: 1 }, { unique: true });  // Changed policy to insurance
 
-// Index for payment status queries
+// Index for payment status queries remains valid
 paymentSchema.index({ paymentDate: 1 });
 
 module.exports = mongoose.model('Payment', paymentSchema);

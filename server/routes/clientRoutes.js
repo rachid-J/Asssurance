@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const clientController = require('../controllers/clientController');
+const { protect } = require('../middleware/authMiddleware');
 
-
+router.use(protect);
 // Client statistics route - place BEFORE the :id route to avoid conflicts
 router.get('/clients/stats', clientController.getClientStats);
 

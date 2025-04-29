@@ -1,86 +1,88 @@
-// controllers/paymentController.js
 const Payment = require('../models/Payment');
-const Policy = require('../models/Policy');
+const Insurance = require('../models/Insurance'); // Changed from Policy
 const mongoose = require('mongoose');
 
 // Get all payments
 exports.getAllPayments = async (req, res) => {
   try {
     const payments = await Payment.find()
-      .populate('policy', 'policyNumber clientName')
+      .populate({
+        path: 'insurance',
+        select: 'policyNumber client', // Keep policyNumber field
+        populate: {
+          path: 'client',
+          select: 'name firstName'
+        }
+      })
       .sort({ paymentDate: -1 });
     
-    res.json(payments);
+    // Map to maintain client name format
+    const formattedPayments = payments.map(payment => ({
+      ...payment.toObject(),
+      clientName: payment.insurance?.client 
+        ? `${payment.insurance.client.firstName} ${payment.insurance.client.name}`
+        : 'N/A'
+    }));
+    
+    res.json(formattedPayments);
   } catch (error) {
     console.error('Error fetching payments:', error);
     res.status(500).json({ message: 'Error fetching payments', error: error.message });
   }
 };
 
-// Get payments for a specific policy
-exports.getPolicyPayments = async (req, res) => {
+exports.getInsurancePayments = async (req, res) => {
   try {
-    const { policyId } = req.params;
+    const { insuranceId } = req.params; // Use consistent parameter name
     
-    // Validate policyId format
-    if (!mongoose.Types.ObjectId.isValid(policyId)) {
-      return res.status(400).json({ message: 'Invalid policy ID format' });
-    }
     
-    const payments = await Payment.find({ policy: policyId })
+    
+    const payments = await Payment.find({ insurance: insuranceId })
       .sort({ advanceNumber: 1 });
     
     res.json(payments);
   } catch (error) {
-    console.error(`Error fetching payments for policy ${req.params.policyId}:`, error);
-    res.status(500).json({ message: 'Error fetching policy payments', error: error.message });
+    console.error(`Error fetching payments for insurance ${req.params.insuranceId}:`, error);
+    res.status(500).json({ message: 'Error fetching insurance payments', error: error.message });
   }
 };
 
-// Create a new payment - simplified without session
+// Create payment for insurance (maintain policy number)
 exports.createPayment = async (req, res) => {
   try {
-    const { policyId } = req.params;
+    const { insuranceId } = req.params; // Changed parameter
     const paymentData = req.body;
     
-    // Validate input
-    if (!mongoose.Types.ObjectId.isValid(policyId)) {
-      return res.status(400).json({ message: 'Invalid policy ID' });
-    }
-    
-    // Validate required fields
-    const requiredFields = ['advanceNumber', 'paymentDate', 'amount', 'paymentMethod'];
-    const missing = requiredFields.filter(f => !paymentData[f]);
-    if (missing.length > 0) {
-      return res.status(400).json({ 
-        message: `Missing required fields: ${missing.join(', ')}`
-      });
+    if (!mongoose.Types.ObjectId.isValid(insuranceId)) {
+      return res.status(400).json({ message: 'Invalid insurance ID' });
     }
 
-    // Check policy exists
-    const policy = await Policy.findById(policyId);
-    if (!policy) return res.status(404).json({ message: 'Policy not found' });
+    // Check insurance exists
+    const insurance = await Insurance.findById(insuranceId); // Changed model
+    if (!insurance) return res.status(404).json({ message: 'Insurance not found' });
 
-    // Handle existing payment
-    const existingPayment = await Payment.findOneAndUpdate(
-      { policy: policyId, advanceNumber: paymentData.advanceNumber },
-      paymentData,
-      { new: true, upsert: true }
-    );
+    // Create payment
+    const payment = new Payment({
+      ...paymentData,
+      insurance: insuranceId // Changed field
 
-    // Update policy status
+    });
+
+    await payment.save();
+
+    // Update insurance payment status (assuming similar schema)
     const totalPaid = await Payment.aggregate([
-      { $match: { policy: policy._id } },
+      { $match: { insurance: insurance._id } }, // Changed field
       { $group: { _id: null, total: { $sum: "$amount" } } }
     ]);
     
-    await Policy.findByIdAndUpdate(policyId, {
+    await Insurance.findByIdAndUpdate(insuranceId, { // Update insurance document
       'paymentStatus.totalPaid': totalPaid[0]?.total || 0,
-      'paymentStatus.isPaidInFull': totalPaid[0]?.total >= policy.primeTTC,
+      'paymentStatus.isPaidInFull': totalPaid[0]?.total >= insurance.primeTTC,
       'paymentStatus.lastPaymentDate': new Date()
     });
 
-    res.status(200).json(existingPayment);
+    res.status(201).json(payment);
   } catch (error) {
     console.error('Payment error:', error);
     res.status(500).json({ 
@@ -90,138 +92,111 @@ exports.createPayment = async (req, res) => {
   }
 };
 
-// Update a payment
+// Update payment (maintain insurance reference)
 exports.updatePayment = async (req, res) => {
   try {
     const { paymentId } = req.params;
     const updateData = req.body;
     
-    // Validate paymentId format
-    if (!mongoose.Types.ObjectId.isValid(paymentId)) {
-      return res.status(400).json({ message: 'Invalid payment ID format' });
-    }
-    
-    // Find and update the payment
     const payment = await Payment.findByIdAndUpdate(
       paymentId,
       updateData,
       { new: true, runValidators: true }
     );
     
-    if (!payment) {
-      return res.status(404).json({ message: 'Payment not found' });
-    }
-    
-    // Update policy's payment status
-    const policy = await Policy.findById(payment.policy);
-    if (policy) {
-      const totalPayments = await Payment.find({ policy: payment.policy });
+    if (!payment) return res.status(404).json({ message: 'Payment not found' });
+
+    // Update insurance status
+    const insurance = await Insurance.findById(payment.insurance); // Changed reference
+    if (insurance) {
+      const totalPayments = await Payment.find({ insurance: payment.insurance });
       const totalPaid = totalPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
       
-      policy.paymentStatus = {
+      insurance.paymentStatus = {
         totalPaid,
-        isPaidInFull: Math.abs(totalPaid - policy.primeTTC) < 0.01,
+        isPaidInFull: Math.abs(totalPaid - insurance.primeTTC) < 0.01,
         lastPaymentDate: new Date()
       };
       
-      await policy.save();
+      await insurance.save();
     }
     
     res.json(payment);
   } catch (error) {
-    console.error(`Error updating payment ${req.params.paymentId}:`, error);
+    console.error(`Error updating payment ${paymentId}:`, error);
     res.status(500).json({ message: 'Error updating payment', error: error.message });
   }
 };
 
-// Delete a payment
+// Delete payment
 exports.deletePayment = async (req, res) => {
   try {
     const { paymentId } = req.params;
-    
-    // Validate paymentId format
-    if (!mongoose.Types.ObjectId.isValid(paymentId)) {
-      return res.status(400).json({ message: 'Invalid payment ID format' });
-    }
-    
-    // Find the payment first to get the policy reference
     const payment = await Payment.findById(paymentId);
     
-    if (!payment) {
-      return res.status(404).json({ message: 'Payment not found' });
-    }
+    if (!payment) return res.status(404).json({ message: 'Payment not found' });
     
-    const policyId = payment.policy;
+    const insuranceId = payment.insurance; // Changed variable name
     
-    // Delete the payment
     await Payment.findByIdAndDelete(paymentId);
-    
-    // Update policy's payment status
-    const policy = await Policy.findById(policyId);
-    if (policy) {
-      const totalPayments = await Payment.find({ policy: policyId });
+
+    // Update insurance status
+    const insurance = await Insurance.findById(insuranceId);
+    if (insurance) {
+      const totalPayments = await Payment.find({ insurance: insuranceId });
       const totalPaid = totalPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
       
-      policy.paymentStatus = {
+      insurance.paymentStatus = {
         totalPaid,
-        isPaidInFull: Math.abs(totalPaid - policy.primeTTC) < 0.01,
+        isPaidInFull: Math.abs(totalPaid - insurance.primeTTC) < 0.01,
         lastPaymentDate: totalPayments.length > 0 ? new Date() : null
       };
       
-      await policy.save();
+      await insurance.save();
     }
     
     res.json({ message: 'Payment deleted successfully' });
   } catch (error) {
-    console.error(`Error deleting payment ${req.params.paymentId}:`, error);
+    console.error(`Error deleting payment ${paymentId}:`, error);
     res.status(500).json({ message: 'Error deleting payment', error: error.message });
   }
 };
 
-// Complete all payments for a policy (full payment)
+// Complete all payments for insurance
 exports.completeAllPayments = async (req, res) => {
   try {
-    const { policyId } = req.params;
+    const { insuranceId } = req.params
     const { paymentDate, paymentMethod, reference, notes, totalAmount } = req.body;
     
-    // Validate policyId format
-    if (!mongoose.Types.ObjectId.isValid(policyId)) {
-      return res.status(400).json({ message: 'Invalid policy ID format' });
+    if (!mongoose.Types.ObjectId.isValid(insuranceId)) {
+      return res.status(400).json({ message: 'Invalid insurance ID format' });
     }
     
-    // Check if the policy exists
-    const policy = await Policy.findById(policyId);
-    if (!policy) {
-      return res.status(404).json({ message: 'Policy not found' });
-    }
+    const insurance = await Insurance.findById(insuranceId); // Changed model
+    if (!insurance) return res.status(404).json({ message: 'Insurance not found' });
     
-    // Find any existing payments
-    const existingPayments = await Payment.find({ policy: policyId });
+    // Delete existing payments
+    await Payment.deleteMany({ insurance: insuranceId });
     
-    // Delete existing payments if any
-    if (existingPayments.length > 0) {
-      await Payment.deleteMany({ policy: policyId });
-    }
-    
-    // Create a single payment for the full amount
+    // Create full payment
     const fullPayment = await Payment.create({
-      policy: policyId,
+      insurance: insuranceId, // Changed field
       advanceNumber: 1,
       paymentDate: paymentDate || new Date(),
-      amount: totalAmount || policy.primeTTC,
+      amount: totalAmount || insurance.primeTTC,
       paymentMethod: paymentMethod || 'cash',
       reference: reference || '',
       notes: (notes ? notes + ' ' : '') + '(Full payment)'
     });
     
-    // Update policy's payment status
-    policy.paymentStatus = {
-      totalPaid: totalAmount || policy.primeTTC,
+    // Update insurance status
+    insurance.paymentStatus = {
+      totalPaid: totalAmount || insurance.primeTTC,
       isPaidInFull: true,
       lastPaymentDate: new Date()
     };
     
-    await policy.save();
+    await insurance.save();
     
     res.status(201).json({
       message: 'All payments completed successfully',

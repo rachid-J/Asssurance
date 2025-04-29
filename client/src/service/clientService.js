@@ -9,31 +9,31 @@ import { axiosClient } from "./axiosClient";
 // src/service/clientService.js - Updated getClients function
 
 export const getClients = async (filters) => {
-    try {
-      // Convert boolean string values to actual booleans if needed
-      const processedFilters = { ...filters };
-      
-      // Handle isDriver filter conversion from string to boolean
-      if (processedFilters.isDriver === 'true') processedFilters.isDriver = true;
-      if (processedFilters.isDriver === 'false') processedFilters.isDriver = false;
-      
-      // Remove empty filters to avoid sending unnecessary parameters
-      Object.keys(processedFilters).forEach(key => {
-        if (processedFilters[key] === '') {
-          delete processedFilters[key];
-        }
-      });
-      
-      const response = await axiosClient.get(`/clients`, { 
-        params: processedFilters,
-        withCredentials: true 
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching clients:', error);
-      throw error;
-    }
-  };
+  try {
+    // Convert boolean string values to actual booleans if needed
+    const processedFilters = { ...filters };
+    
+    // Handle isDriver filter conversion from string to boolean
+    if (processedFilters.isDriver === 'true') processedFilters.isDriver = true;
+    if (processedFilters.isDriver === 'false') processedFilters.isDriver = false;
+    
+    // Remove empty filters to avoid sending unnecessary parameters
+    Object.keys(processedFilters).forEach(key => {
+      if (processedFilters[key] === '' || processedFilters[key] === undefined) {
+        delete processedFilters[key];
+      }
+    });
+    
+    const response = await axiosClient.get(`/clients`, { 
+      params: processedFilters,
+      withCredentials: true 
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching clients:', error);
+    throw error;
+  }
+};
 
 // Get single client by ID with associated vehicles
 export const getClient = async (clientId) => {
