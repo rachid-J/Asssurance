@@ -61,7 +61,7 @@ export const getVehiclesByClient = async (clientId) => {
     try {
       // Use the standard getVehicles endpoint with clientId filter
       const response = await axiosClient.get(`/vehicles?clientId=${clientId}`);
-      return response.data.vehicles;
+      return response.data;
     } catch (error) {
       console.error('Error fetching vehicles:', error);
       throw error;

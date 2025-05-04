@@ -39,8 +39,7 @@ export default function Layout() {
     { name: translations[currentlangage].dashboard, href: '/', icon: HomeIcon },
     { name: translations[currentlangage].clients, href: '/clients', icon: UsersIcon },
     { name: translations[currentlangage].assuranceCases, href: '/assurance-cases', icon: DocumentDuplicateIcon },
-    { name: translations[currentlangage].payments, href: '/payments', icon: CurrencyDollarIcon },
-    { name: translations[currentlangage].documents, href: '/documents', icon: DocumentTextIcon },
+    { name: translations[currentlangage].Raports, href: '/Raports', icon: DocumentTextIcon  },
     {name : translations[currentlangage].userManagement, href: '/user-management', icon: UserGroupIcon},
   ]
   const handleLogout = async () => {

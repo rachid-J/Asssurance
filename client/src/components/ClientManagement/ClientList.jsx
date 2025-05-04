@@ -13,10 +13,15 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   FunnelIcon,
-  ArrowsUpDownIcon
+  ArrowsUpDownIcon,
+  TrashIcon,
+  EyeIcon
 } from '@heroicons/react/24/outline';
 import { getClients } from '../../service/clientService';
 import { getUsers } from '../../service/Users';
+import DeleteClientModal from './Common/DeleteClientModal';
+
+
 export const ClientList = () => {
   const navigate = useNavigate();
   
@@ -36,13 +41,17 @@ export const ClientList = () => {
     clientType: '',
     city: '',
     isDriver: '',
-    joinby: '', // Add this
+    joinby: '',
     sortBy: 'createdAt',
     sortOrder: 'desc',
     page: 1,
     limit: 10
   });
   const [showFilters, setShowFilters] = useState(false);
+  
+  // Delete modal state
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [clientToDelete, setClientToDelete] = useState(null);
 
   useEffect(() => {
     const fetchClients = async () => {
@@ -66,6 +75,7 @@ export const ClientList = () => {
     
     fetchClients();
   }, [filters]);
+
   useEffect(() => {
     const fetchUsers = async () => {
       try {
@@ -79,6 +89,7 @@ export const ClientList = () => {
     
     fetchUsers();
   }, []);
+
   const handleSearch = (e) => {
     setFilters({
       ...filters,
@@ -113,7 +124,7 @@ export const ClientList = () => {
       clientType: '',
       city: '',
       isDriver: '',
-      joinby: '', // Add this
+      joinby: '',
       page: 1
     });
   };
@@ -126,10 +137,15 @@ export const ClientList = () => {
     navigate(`/clients/${clientId}/edit`);
   };
   
-  const handleDeleteClient = (clientId) => {
-    // Implement delete functionality
-    console.log("Delete client:", clientId);
-    // You would typically show a confirmation modal here
+  const handleDeleteClient = (client) => {
+    setClientToDelete(client);
+    setDeleteModalOpen(true);
+  };
+  
+  const handleClientDeleted = () => {
+    // Refresh the client list after successful deletion
+    const refreshedFilters = { ...filters };
+    setFilters(refreshedFilters);
   };
   
   const handleAddClient = () => {
@@ -206,24 +222,25 @@ export const ClientList = () => {
           {showFilters && (
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-4 gap-4">
               <div>
-  <label htmlFor="joinby" className="block text-sm font-medium text-gray-700">
-    Added By
-  </label>
-  <select
-    id="joinby"
-    name="joinby"
-    value={filters.joinby || ''}
-    onChange={handleFilterChange}
-    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-[#1E265F] focus:border-[#1E265F] sm:text-sm rounded-md"
-  >
-    <option value="">All Users</option>
-    {users.map(user => (
-      <option key={user._id} value={user._id}>
-        {user.username} 
-      </option>
-    ))}
-  </select>
-</div>
+                <label htmlFor="joinby" className="block text-sm font-medium text-gray-700">
+                  Added By
+                </label>
+                <select
+                  id="joinby"
+                  name="joinby"
+                  value={filters.joinby || ''}
+                  onChange={handleFilterChange}
+                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-[#1E265F] focus:border-[#1E265F] sm:text-sm rounded-md"
+                >
+                  <option value="">All Users</option>
+                  {users.map(user => (
+                    <option key={user._id} value={user._id}>
+                      {user.username} 
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
               <div>
                 <label htmlFor="clientType" className="block text-sm font-medium text-gray-700">
                   Client Type
@@ -496,26 +513,42 @@ export const ClientList = () => {
                           }`}>
                             {client.isDriver === true ? 'Driver' : 'Non-Driver'}
                           </span>
+                          {client.active === false && (
+                            <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                              Inactive
+                            </span>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <button
                             onClick={() => handleViewClient(client._id)}
-                            className="text-[#1E265F] hover:text-[#3D4577] mr-3"
+                            className="text-[#1E265F] hover:text-[#272F65] mr-3"
+                            title="View Client"
                           >
-                            View
+                            <EyeIcon className="h-5 w-5" />
                           </button>
-                          <button
-                            onClick={() => handleEditClient(client._id)}
-                            className="text-indigo-600 hover:text-indigo-900 mr-3"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDeleteClient(client._id)}
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            Delete
-                          </button>
+                  
+
+  
+  {client.active && (
+    <>
+      <button
+        onClick={() => handleEditClient(client._id)}
+        className="text-indigo-600 hover:text-indigo-900 mr-3"
+        title="Edit Client"
+      >
+        <PencilIcon className="h-5 w-5" />
+      </button>
+      <button
+        onClick={() => handleDeleteClient(client)}
+        className="text-red-600 hover:text-red-900"
+        title="Delete Client"
+      >
+        <TrashIcon className="h-5 w-5" />
+      </button>
+    </>
+  )}
+
                         </td>
                       </tr>
                     ))}
@@ -523,83 +556,120 @@ export const ClientList = () => {
                 </table>
               </div>
             )}
+            
+            {/* Pagination */}
+            {clients.length > 0 && pagination.totalPages > 1 && (
+              <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+                <div className="flex-1 flex justify-between sm:hidden">
+                  <button
+                    onClick={() => handlePageChange(Math.max(1, filters.page - 1))}
+                    disabled={filters.page === 1}
+                    className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 ${
+                      filters.page === 1 ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => handlePageChange(Math.min(pagination.totalPages, filters.page + 1))}
+                    disabled={filters.page === pagination.totalPages}
+                    className={`ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 ${
+                      filters.page === pagination.totalPages ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    Next
+                  </button>
+                </div>
+                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm text-gray-700">
+                      Showing <span className="font-medium">{(filters.page - 1) * filters.limit + 1}</span> to{' '}
+                      <span className="font-medium">
+                        {Math.min(filters.page * filters.limit, pagination.totalRecords)}
+                      </span>{' '}
+                      of <span className="font-medium">{pagination.totalRecords}</span> results
+                    </p>
+                  </div>
+                  <div>
+                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                      <button
+                        onClick={() => handlePageChange(Math.max(1, filters.page - 1))}
+                        disabled={filters.page === 1}
+                        className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 ${
+                          filters.page === 1 ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                      >
+                        <span className="sr-only">Previous</span>
+                        <ChevronLeftIcon className="h-5 w-5" aria-hidden="true" />
+                      </button>
+                      
+                      {/* Page numbers */}
+                      {[...Array(pagination.totalPages).keys()].map((x) => {
+                        const pageNumber = x + 1;
+                        // Show first page, last page, and pages around current page
+                        if (
+                          pageNumber === 1 ||
+                          pageNumber === pagination.totalPages ||
+                          (pageNumber >= filters.page - 1 && pageNumber <= filters.page + 1)
+                        ) {
+                          return (
+                            <button
+                              key={pageNumber}
+                              onClick={() => handlePageChange(pageNumber)}
+                              className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                pageNumber === filters.page
+                                  ? 'z-10 bg-[#1E265F] border-[#1E265F] text-white'
+                                  : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                              }`}
+                            >
+                              {pageNumber}
+                            </button>
+                          );
+                        } else if (
+                          (pageNumber === 2 && filters.page > 3) ||
+                          (pageNumber === pagination.totalPages - 1 && filters.page < pagination.totalPages - 2)
+                        ) {
+                          // Show ellipsis
+                          return (
+                            <span
+                              key={pageNumber}
+                              className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700"
+                            >
+                              ...
+                            </span>
+                          );
+                        }
+                        return null;
+                      })}
+                      
+                      <button
+                        onClick={() => handlePageChange(Math.min(pagination.totalPages, filters.page + 1))}
+                        disabled={filters.page === pagination.totalPages}
+                        className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 ${
+                          filters.page === pagination.totalPages ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                      >
+                        <span className="sr-only">Next</span>
+                        <ChevronRightIcon className="h-5 w-5" aria-hidden="true" />
+                      </button>
+                    </nav>
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         )}
-        
-        {/* Pagination */}
-        {!loading && !error && clients.length > 0 && (
-          <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-            <div className="flex-1 flex justify-between sm:hidden">
-              <button
-                onClick={() => handlePageChange(pagination.currentPage - 1)}
-                disabled={pagination.currentPage <= 1}
-                className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
-                  pagination.currentPage <= 1 
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => handlePageChange(pagination.currentPage + 1)}
-                disabled={pagination.currentPage >= pagination.totalPages}
-                className={`ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
-                  pagination.currentPage >= pagination.totalPages 
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                Next
-              </button>
-            </div>
-            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm text-gray-700">
-                  Showing <span className="font-medium">{clients.length > 0 ? ((pagination.currentPage - 1) * pagination.limit) + 1 : 0}</span> to{' '}
-                  <span className="font-medium">
-                    {Math.min(pagination.currentPage * pagination.limit, pagination.totalRecords)}
-                  </span>{' '}
-                  of <span className="font-medium">{pagination.totalRecords}</span> results
-                </p>
-              </div>
-              <div>
-                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                  <button
-                    onClick={() => handlePageChange(pagination.currentPage - 1)}
-                    disabled={pagination.currentPage <= 1}
-                    className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 text-sm font-medium ${
-                      pagination.currentPage <= 1 
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                        : 'bg-white text-gray-500 hover:bg-gray-50'
-                    }`}
-                  >
-                    <ChevronLeftIcon className="h-5 w-5" />
-                  </button>
-                  
-                  {/* Page numbers would go here - simplified for example */}
-                  <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
-                    Page {pagination.currentPage} of {pagination.totalPages}
-                  </span>
-                  
-                  <button
-                    onClick={() => handlePageChange(pagination.currentPage + 1)}
-                    disabled={pagination.currentPage >= pagination.totalPages}
-                    className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 text-sm font-medium ${
-                      pagination.currentPage >= pagination.totalPages 
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                        : 'bg-white text-gray-500 hover:bg-gray-50'
-                    }`}
-                  >
-                    <ChevronRightIcon className="h-5 w-5" />
-                  </button>
-                </nav>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
+      
+      {/* Delete Client Modal */}
+      <DeleteClientModal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        client={clientToDelete}
+        onDeleted={handleClientDeleted}
+      />
     </div>
   );
 };
 
+export default ClientList;

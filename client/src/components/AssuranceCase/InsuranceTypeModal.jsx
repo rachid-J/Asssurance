@@ -1,21 +1,19 @@
 import { useState } from 'react';
 import { XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
-import ReselRefundModal from './ReselRefundModal';
+import ReselRefundModal from './ReselRefundModal'
+
 
 export default function InsuranceTypeModal({ isOpen, onClose, onConfirm, insuranceId, currentType, payments }) {
   const [loading, setLoading] = useState(false);
   const [showRefundModal, setShowRefundModal] = useState(false);
   
-  // Calculate total paid amount
-  const totalPaid = payments?.filter(p => p.paymentDate)
-    .reduce((sum, p) => sum + p.amount, 0) || 0;
+  // Calcul du montant total payé
+  const totalPaid = payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
 
   const handleInitialConfirm = () => {
-    // If payments have been made, show refund modal
     if (totalPaid > 0) {
       setShowRefundModal(true);
     } else {
-      // If no payments, just proceed with type change
       handleConfirmTypeChange();
     }
   };
@@ -23,16 +21,16 @@ export default function InsuranceTypeModal({ isOpen, onClose, onConfirm, insuran
   const handleConfirmTypeChange = async (refundData) => {
     try {
       setLoading(true);
-      // Ensure we pass numeric values
+      // S'assurer d'envoyer un objet vide plutôt que null
       const processedData = refundData ? {
         ...refundData,
-        refundAmount: Number(refundData.refundAmount)
-      } : null;
+        refundAmount: parseFloat(refundData.refundAmount)
+      } : {};
       
       await onConfirm(insuranceId, processedData);
       onClose();
     } catch (error) {
-      console.error("Error changing insurance type:", error);
+      console.error("Erreur lors du changement de type d'assurance :", error);
     } finally {
       setLoading(false);
     }
@@ -51,7 +49,7 @@ export default function InsuranceTypeModal({ isOpen, onClose, onConfirm, insuran
                 className="text-gray-400 bg-white rounded-md hover:text-gray-500 focus:outline-none"
                 onClick={onClose}
               >
-                <span className="sr-only">Close</span>
+                <span className="sr-only">Fermer</span>
                 <XMarkIcon className="w-6 h-6" aria-hidden="true" />
               </button>
             </div>
@@ -62,18 +60,20 @@ export default function InsuranceTypeModal({ isOpen, onClose, onConfirm, insuran
               </div>
               <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
                 <h3 className="text-lg font-medium leading-6 text-gray-900">
-                  Change Insurance Type to Resel
+                  Changer le type d'assurance en Résiliation
                 </h3>
                 <div className="mt-2">
                   <p className="text-sm text-gray-500">
-                    Are you sure you want to change this insurance type to "resel"? This action cannot be undone.
+                    Êtes-vous sûr de vouloir changer le type de cette assurance en « résiliation » ?
+                    Cette action est irréversible.
                   </p>
                   
                   {totalPaid > 0 && (
                     <div className="mt-2 p-2 bg-yellow-50 border border-yellow-100 rounded">
                       <p className="text-sm text-yellow-700">
-                        <strong>Note:</strong> This insurance has payments totaling <strong>{totalPaid.toFixed(2)} MAD</strong>. 
-                        Proceeding will require processing a refund to the client.
+                        <strong>Note :</strong> Cette assurance a des paiements totalisant{' '}
+                        <strong>{totalPaid.toFixed(2)} MAD</strong>. 
+                        La poursuite nécessitera un remboursement au client.
                       </p>
                     </div>
                   )}
@@ -88,21 +88,21 @@ export default function InsuranceTypeModal({ isOpen, onClose, onConfirm, insuran
                 onClick={handleInitialConfirm}
                 disabled={loading}
               >
-                {loading ? 'Processing...' : totalPaid > 0 ? 'Continue to Refund' : 'Confirm Change'}
+                {loading ? 'Traitement en cours...' : totalPaid > 0 ? 'Continuer vers le remboursement' : 'Confirmer le changement'}
               </button>
               <button
                 type="button"
                 className="inline-flex justify-center w-full px-4 py-2 mt-3 text-base font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1E265F] sm:mt-0 sm:w-auto sm:text-sm"
                 onClick={onClose}
               >
-                Cancel
+                Annuler
               </button>
             </div>
           </div>
         </div>
       </div>
       
-      {/* Refund Modal */}
+      {/* Modal de remboursement */}
       {showRefundModal && (
         <ReselRefundModal
           isOpen={showRefundModal}

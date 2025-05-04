@@ -1,5 +1,6 @@
 const Vehicle = require('../models/Vehicle');
 const Client = require('../models/Client');
+const Insurance = require('../models/Insurance');
 
 // Get all vehicles with search and filters
 exports.getVehicles = async (req, res) => {
@@ -44,8 +45,11 @@ exports.getVehicles = async (req, res) => {
     .sort({ [sortBy]: sortDirection })
     .skip(skip)
     .limit(parseInt(limit))
-    .populate('clientId', 'name firstName telephone')
-    .populate('insuranceId','policyNumber'); // Changed from policyId
+    .populate('clientId', 'name firstName telephone');
+
+
+  
+
     // Count for pagination
     const totalCount = await Vehicle.countDocuments(query);
     
@@ -67,13 +71,16 @@ exports.getVehicles = async (req, res) => {
 exports.getVehicle = async (req, res) => {
   try {
     const vehicle = await Vehicle.findById(req.params.id)
-      .populate('clientId')
-      .populate('insuranceId','policyNumber'); // Changed from policyId
+      .populate('clientId');
 
-      
     if (!vehicle) return res.status(404).json({ message: 'Vehicle not found' });
-    
-    res.json(vehicle);
+
+    const insurance = await Insurance.find({ vehicle: vehicle.id });
+
+    res.json({
+      vehicle,
+      insurance,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -82,13 +89,20 @@ exports.getVehicle = async (req, res) => {
 // Create vehicle
 exports.createVehicle = async (req, res) => {
   try {
+    // Add authentication check
+    if (!req.user?._id) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
     // Check if client exists
     const client = await Client.findById(req.body.clientId);
     if (!client) {
       return res.status(404).json({ message: 'Client not found' });
     }
-    
+
     const vehicle = new Vehicle({
+      // Add createdby field
+      createdby: req.user._id,  // <-- This is where creator tracking is added
       clientId: req.body.clientId,
       make: req.body.make,
       model: req.body.model,
@@ -108,12 +122,16 @@ exports.createVehicle = async (req, res) => {
     const newVehicle = await vehicle.save();
     client.vehicles.push(newVehicle._id);
     await client.save();
+    
     res.status(201).json(newVehicle);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(400).json({ 
+      message: error.message,
+      // Add error details for development
+      ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
+    });
   }
 };
-
 // Update vehicle
 exports.updateVehicle = async (req, res) => {
   try {

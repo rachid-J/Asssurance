@@ -10,7 +10,7 @@ const paymentSchema = new mongoose.Schema({
     type: Number,
     required: true,
     min: 1,
-    max: 4
+    max: 5
   },
   paymentDate: {
     type: Date,
@@ -26,7 +26,7 @@ const paymentSchema = new mongoose.Schema({
   },
   reference: String,
   notes: String
-});
+},{ timestamps: true });
 
 // Updated compound index for insurance references
 paymentSchema.index({ insurance: 1, advanceNumber: 1 }, { unique: true });  // Changed policy to insurance

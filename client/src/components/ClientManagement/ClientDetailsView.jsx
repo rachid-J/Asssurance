@@ -1,5 +1,5 @@
 // ClientDetailsView.jsx - Main Component
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { getClient } from '../../service/clientService';
@@ -15,37 +15,33 @@ export const ClientDetailsView = () => {
   const [error, setError] = useState(null);
   const [insurances, setInsurances] = useState([]); // Changed from policies
   const [activeTab, setActiveTab] = useState('personal');
+  
+ 
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false); // Add state for modal
+  const fetchClientDetails = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await getClient(id);
+      
+      setClient(response.client);
+      setVehicles(response.client.vehicles || []);
+      setInsurances(response.client.insurances || []);
+    } catch (error) {
+      console.error('Error fetching client details:', error);
+      setError('Failed to load client information. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  }, [id]); // Dependency on id
 
   useEffect(() => {
-    const fetchClientDetails = async () => {
-      try {
-        setLoading(true);
-        const response = await getClient(id);
-        setClient(response.client);
-        setVehicles(response.vehicles || []);
-        setInsurances(response.insurances || []); // Changed from policies
-      } catch (error) {
-        console.error('Error fetching client details:', error);
-        setError('Failed to load client information. Please try again later.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    
     if (id) {
       fetchClientDetails();
     }
-  }, [id]);
+  }, [id, fetchClientDetails]);
 
   const handleEditClient = () => {
     navigate(`/clients/${id}/edit`);
-  };
-
-  const handleDeleteClient = () => {
-    if (window.confirm('Are you sure you want to delete this client?')) {
-      console.log('Delete client:', id);
-      navigate('/clients');
-    }
   };
 
   const handleAddVehicle = () => {
@@ -90,14 +86,16 @@ export const ClientDetailsView = () => {
               <PencilIcon className="h-4 w-4 mr-2" />
               Edit
             </button>
+            {client?.active && (
             <button
-              onClick={handleDeleteClient}
-              className="inline-flex items-center px-3 py-2 border border-red-300 shadow-sm text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              onClick={() => setIsDeleteModalOpen(true)} // Open modal on click
+              className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1E265F]"
             >
-              <TrashIcon className="h-4 w-4 mr-2" />
+              <TrashIcon className="h-4 w-5 mr-2" />
               Delete
             </button>
-          </div>
+          )}
+      </div>
         </div>
       </div>
       
@@ -107,7 +105,16 @@ export const ClientDetailsView = () => {
         setActiveTab={setActiveTab} 
         isDriver={client.isDriver}
         vehiclesCount={vehicles.length}
-      />
+      />   
+      <DeleteClientModal
+      isOpen={isDeleteModalOpen}
+      onClose={() => {
+        setIsDeleteModalOpen(false);
+        fetchClientDetails(); // Refetch data on close
+      }}
+      client={client.id}
+      onDeleted={() => navigate('/clients')} // Navigate after hard delete
+    />
       
       {/* Content Area */}
       <div className="bg-white shadow overflow-hidden sm:rounded-lg">
@@ -173,4 +180,5 @@ import { ClientHeader } from './Common/ClientHeader';
 import { LoadingSpinner } from './Common/LoadingSpinner';
 import { ErrorMessage } from './Common/ErrorMessage';
 import { InsuranceTab } from './components/Insurance/InsuranceTab';
+import DeleteClientModal from './Common/DeleteClientModal';
 

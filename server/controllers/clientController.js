@@ -1,4 +1,6 @@
 const Client = require('../models/Client');
+const Document = require('../models/Document');
+const Insurance = require('../models/Insurance');
 const User = require('../models/User');
 const Vehicle = require('../models/Vehicle');
 
@@ -78,26 +80,90 @@ exports.getClients = async (req, res) => {
 // Get single client with vehicles
 exports.getClient = async (req, res) => {
   try {
+    // Fetch client with vehicles
     const client = await Client.findById(req.params.id)
       .populate({
         path: 'vehicles',
-        select: 'make model yearOfManufacture registrationNumber vehicleType',
+        select: 'make model yearOfManufacture registrationNumber vehicleType createdAt usage',
         options: { sort: { createdAt: -1 } }
       })
-      .populate({
-        path: 'insurances', // Changed from policies
-        options: { sort: { startDate: -1 } }
-      });
+      .lean();
 
-    if (!client) return res.status(404).json({ message: 'Client not found' });
-    
-    res.json({
-      client: client.toObject({ virtuals: true }),
-      vehicles: client.vehicles || [],
-      insurances: client.insurances || [] // Changed from policies
+    if (!client) {
+      return res.status(404).json({ success: false, message: 'Client not found' });
+    }
+
+    // Create a vehicle lookup map for quick access
+    const vehiclesMap = {};
+    client.vehicles.forEach(vehicle => {
+      vehiclesMap[vehicle._id.toString()] = vehicle;
+    });
+
+    // Fetch insurances with populated vehicle data
+    const insurances = await Insurance.find({ _id: { $in: client.insurances } })
+      .select('policyNumber startDate endDate status insuranceType primeActuel primeTTC vehicle')
+      .populate({
+        path: 'vehicle',
+        select: 'make model registrationNumber usage'
+      })
+      .sort({ startDate: -1 })
+      .lean();
+
+    // Extract insurance IDs
+    const insuranceIds = insurances.map(ins => ins._id);
+
+    // Fetch documents for these insurances
+    const docs = await Document.find({ insurance: { $in: insuranceIds } })
+      .select('name type fileUrl createdAt insurance')
+      .lean();
+
+    // Map docs to each insurance
+    const docsMap = {};
+    docs.forEach(doc => {
+      const key = doc.insurance.toString();
+      if (!docsMap[key]) docsMap[key] = [];
+      docsMap[key].push(doc);
+    });
+
+    // Transform insurances with period, vehicleInfo, and attached docs
+    const transformedInsurances = insurances.map(ins => {
+      // Handle vehicle info safely
+      let vehicleInfo = 'No vehicle';
+      if (ins.vehicle && typeof ins.vehicle === 'object') {
+        vehicleInfo = `${ins.vehicle.make || ''} ${ins.vehicle.model || ''} (${ins.vehicle.registrationNumber || ''})`;
+      }
+
+      return {
+        ...ins,
+        period: `${new Date(ins.startDate).toLocaleDateString()} - ${new Date(ins.endDate).toLocaleDateString()}`,
+        vehicleInfo: vehicleInfo,
+        documents: docsMap[ins._id.toString()] || []
+      };
+    });
+
+    // Calculate vehicle ages
+    const vehiclesWithAge = client.vehicles.map(v => ({
+      ...v,
+      age: new Date().getFullYear() - v.yearOfManufacture
+    }));
+
+    // Build response
+    return res.json({
+      success: true,
+      client: {
+        ...client,
+        fullName: `${client.firstName} ${client.name}`,
+        insurances: transformedInsurances,
+        vehicles: vehiclesWithAge
+      }
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('getClient error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server Error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
 
@@ -153,7 +219,7 @@ exports.createClient = async (req, res) => {
       licenseCountry,
       licenseIssueDate: licenseIssueDate ? new Date(licenseIssueDate) : undefined,
       clientType,
-      createdBy: req.user._id, // Assuming req.user is set by authentication middleware
+      joinby: req.user._id, // Assuming req.user is set by authentication middleware
     });
 
     const newClient = await client.save();

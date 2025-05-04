@@ -10,42 +10,38 @@ const {
   cancelInsurance,
   getInsuranceById,
   changeInsuranceTypeToResel,
-  processRefund
-} = require('../controllers/insuranceController'); // Changed controller reference
+  processRefund,
+  getLatestExpiredInsurance
+} = require('../controllers/insuranceController');
 const { protect } = require('../middleware/authMiddleware');
+const { restrictInsuranceAccess, canAccessInsurance } = require('../middleware/insuranceAuthMiddleware');
 
 const router = express.Router();
+
+// Apply authentication middleware to all routes
 router.use(protect);
-// Insurance routes (keeping policyNumber field as-is)
+
+// Routes with role-based access control
 router.route('/')
-  .get(getInsurances)       // Changed from getPolicies
-  .post(createInsurance);   // Changed from createPolicy
+  .get(restrictInsuranceAccess, getInsurances)  // Restrict insurance list based on user role
+  .post(createInsurance);
 
 router.route('/totals')
-  .get(getInsuranceTotals); // Changed from getPolicyTotals
-
-
+  .get(restrictInsuranceAccess, getInsuranceTotals);
 
 router.route('/stats')
-  .get(getInsuranceStats);  // Changed from getPolicyStats
+  .get(restrictInsuranceAccess, getInsuranceStats);
 
+// Single insurance routes - check if user can access this specific insurance
 router.route('/:id')
-  .get(getInsuranceById)    // Changed from getPolicyById
-  .put(updateInsurance)     // Changed from updatePolicy
-  .delete(deleteInsurance)
-  // Changed from deletePolicy
+  .get(canAccessInsurance, getInsuranceById)
+  .put(canAccessInsurance, updateInsurance)
+  .delete(canAccessInsurance, deleteInsurance);
 
-// Renewal and cancellation routes
-router.post('/:id/renew', protect,renewInsurance);    // Changed path and controller
-router.put('/:id/cancel', protect,cancelInsurance);  // Changed path and controller
-
-router.put(
-  '/:id/type-resel',
-  protect, // Add authentication middleware
-  changeInsuranceTypeToResel
-);
+// Special operations on specific insurances
+router.post('/:id/renew', canAccessInsurance, renewInsurance);
+router.put('/:id/cancel', canAccessInsurance, cancelInsurance);
+router.put('/:id/type-resel', changeInsuranceTypeToResel);
 router.post('/:id/refund', processRefund);
-
-
-
+router.get('/latest-expired/:vehicleId',getLatestExpiredInsurance);
 module.exports = router;

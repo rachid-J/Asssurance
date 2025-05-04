@@ -14,12 +14,15 @@ import { ClientDetailsView } from './components/ClientManagement/ClientDetailsVi
 import { VehicleAddPage } from './components/ClientManagement/components/vehicules/VehicleAddPage';
 import  VehicleDocumentsPage  from './components/ClientManagement/components/vehicules/VehicleDocumentsPage';
 import  AddDocumentPage  from './components/ClientManagement/components/vehicules/AddDocumentPage';
-import  PaymentsList  from './components/Payments/PaymentsList';
 import  DocumentsList  from './components/Documents/DocumentsList';
 import  AssuranceList  from './components/AssuranceCase/AssuranceList';
 import  InsuranceDetailPage  from './components/AssuranceCase/InsuranceDetailPage';
 import PaymentPage from './components/AssuranceCase/PaymentPage';
 import{ Dashboard} from './components/Dashboard/Dashboard'
+import { ClientEditForm } from './components/ClientManagement/ClientEditForm';
+import Reports from './components/raports/Raport';
+
+
 
 function App() {
   const [serverStatus, setServerStatus] = useState(null);
@@ -72,17 +75,17 @@ function App() {
             <Route index element={<Dashboard />} />
             <Route path="clients" element={<ClientList />} />
             <Route path="clients/:id" element={<ClientDetailsView />} />
-            <Route path="clients/:id/edit" element={<ClientCreateForm />} />
+            <Route path="clients/new" element={<ClientCreateForm />} />
+            <Route path="/clients/:id/edit" element={<ClientEditForm />} />
             <Route path="vehicles/new" element={<VehicleAddPage />} />
             <Route path="/clients/:clientId/vehicles" element={<NewInsuranceForm />} />
             <Route path="/clients/:clientId/vehicles/:vehicleId/documents" element={<VehicleDocumentsPage />} />
             <Route path="/clients/:clientId/vehicles/:vehicleId/documents/add" element={<AddDocumentPage />} />
             <Route path="/clients/:clientId/insurances/new" element={<NewInsuranceForm />} />
-            <Route path="clients/new" element={<ClientCreateForm />} />
-            <Route path="assurance-cases" element={<AssuranceList />} />
+            <Route path="assurance-cases" element={<AssuranceList  />} />
             <Route path="assurance-cases/:insuranceId" element={<InsuranceDetailPage />} />
             <Route path="assurance-cases/:insuranceId/payments" element={<PaymentPage />} />
-            <Route path="payments" element={<PaymentsList />} />
+            <Route path="raports" element={<Reports />} />
             <Route path="documents" element={<DocumentsList />} />
             <Route path="user-management" element={<UserManagement />} />
           </Route>

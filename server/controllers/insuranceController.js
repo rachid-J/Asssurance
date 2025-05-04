@@ -2,9 +2,7 @@ const Payment = require('../models/Payment');
 const Client = require('../models/Client');
 const Vehicle = require('../models/Vehicle');
 const Insurance = require('../models/Insurance');
-
-
-
+const User = require('../models/User');
 
 // Helper function to build date filter
 const buildDateFilter = (startDate, endDate) => ({
@@ -17,6 +15,14 @@ const getInsurances = async (req, res) => {
     const { search, startDate, endDate, period, createdby } = req.query;
     let query = {};
 
+    // If user is not admin, filter by current user ID
+    if (req.user.role !== 'admin' && !createdby) {
+      query.createdby = req.user._id;
+    } else if (createdby) {
+
+      query.createdby = createdby;
+    }
+
     // Add search filter if provided
     if (search && search.trim() !== '') {
       // Create a text search across multiple fields
@@ -26,11 +32,6 @@ const getInsurances = async (req, res) => {
         { 'client.firstName': { $regex: search, $options: 'i' } },
         { insuranceType: { $regex: search, $options: 'i' } }
       ];
-    }
-
-    // Add createdby filter if provided
-    if (createdby) {
-      query.createdby = createdby;
     }
 
     if (period && period !== 'all') {
@@ -61,7 +62,7 @@ const getInsurances = async (req, res) => {
 
     const insurances = await Insurance.find(query)
       .sort({ startDate: -1 })
-      .populate('client', 'title name firstName')
+      .populate('client', 'title name firstName telephone email')
       .populate('createdby', 'name firstName') 
       .lean();
 
@@ -108,7 +109,7 @@ const getInsurances = async (req, res) => {
 // controllers/insuranceController.js
 const createInsurance = async (req, res) => {
   try {
-    const { vehicle, client, ...insuranceData } = req.body;
+    const { vehicle, client, insuranceType, ...insuranceData } = req.body;
 
     // Validate user authentication
     if (!req.user?._id) {
@@ -129,25 +130,59 @@ const createInsurance = async (req, res) => {
     if (!clientObj) return res.status(404).json({ message: 'Client not found' });
     if (!vehicleObj) return res.status(404).json({ message: 'Vehicle not found' });
 
-    // Create insurance with corrected field name
+    // Handle policy number for renewals
+   // server/controllers/insuranceController.js
+if (insuranceType === 'Renouvellement') {
+  const latestExpired = await Insurance.findOne({
+    vehicle: vehicleObj._id,
+    status: 'Expired'
+  }).sort({ endDate: -1 });
+
+  if (!latestExpired) {
+    return res.status(400).json({ 
+      message: 'Cannot renew - no expired insurance found for this vehicle',
+      code: 'NO_EXPIRED_POLICY'
+    });
+  }
+
+  // Check for existing active renewal
+  const existingActive = await Insurance.findOne({
+    policyNumber: latestExpired.policyNumber,
+    status: 'Active'
+  });
+
+  if (existingActive) {
+    return res.status(400).json({
+      message: 'Active renewal already exists for this policy',
+      code: 'ACTIVE_RENEWAL_EXISTS'
+    });
+  }
+
+  insuranceData.policyNumber = latestExpired.policyNumber;
+}
+
+   
+    // Create insurance
     const insurance = new Insurance({
       ...insuranceData,
+      insuranceType,
       client: clientObj._id,
       vehicle: vehicleObj._id,
       usage: vehicleObj.usage,
-      createdby: req.user._id  // Corrected field name
+      createdby: req.user._id
     });
 
-    // Save and update relationships
+    // Save insurance
     const savedInsurance = await insurance.save();
     
+    // Update relationships (corrected vehicle update)
     await Promise.all([
       Client.findByIdAndUpdate(client, 
         { $addToSet: { insurances: savedInsurance._id } },
         { new: true }
       ),
       Vehicle.findByIdAndUpdate(vehicle,
-        { $addToSet: { insuranceId: savedInsurance._id } },
+        { $set: { insuranceId: savedInsurance._id } }, // Corrected to set single reference
         { new: true }
       )
     ]);
@@ -167,6 +202,12 @@ const updateInsurance = async (req, res) => {
     const insurance = await Insurance.findById(req.params.id);
     if (!insurance) {
       return res.status(404).json({ message: 'Insurance not found' });
+    }
+ 
+
+    // Check if user has permission to update this insurance
+    if (req.user.role !== 'admin' && insurance.createdby.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Access denied. You can only update insurances you created.' });
     }
 
     if (req.body.primeTTC) {
@@ -192,12 +233,18 @@ const updateInsurance = async (req, res) => {
 
 const deleteInsurance = async (req, res) => {
   try {
-    const insurance = await Insurance.findByIdAndDelete(req.params.id);
+    const insurance = await Insurance.findById(req.params.id);
     
     if (!insurance) {
       return res.status(404).json({ message: 'Insurance not found' });
     }
 
+    // Check if user has permission to delete this insurance
+    if (req.user.role !== 'admin' && insurance.createdby.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Access denied. You can only delete insurances you created.' });
+    }
+
+    await Insurance.findByIdAndDelete(req.params.id);
     await Payment.deleteMany({ insurance: insurance._id });
     
     res.json({ message: 'Insurance deleted successfully' });
@@ -210,12 +257,24 @@ const getInsuranceTotals = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
     
-    const matchStage = {};
+    // Build the match stage with date filters
+    const matchStage = {
+      // Exclude canceled insurance policies
+      status: { $ne: 'Canceled' }
+    };
+    
     if (startDate && endDate) {
       matchStage.startDate = {
         $gte: new Date(startDate),
         $lte: new Date(endDate)
       };
+    }
+
+    // Add createdby filter for non-admin users
+    if (req.user.role !== 'admin') {
+      matchStage.createdby = req.user._id;
+    } else if (req.query.createdby) {
+      matchStage.createdby = req.query.createdby;
     }
 
     const aggregation = await Insurance.aggregate([
@@ -242,12 +301,18 @@ const getInsuranceTotals = async (req, res) => {
 const getInsuranceById = async (req, res) => {
   try {
     const insurance = await Insurance.findById(req.params.id)
-      .populate('client', 'title name firstName')
+      .populate('client', 'title name firstName telephone email')
       .populate('vehicle', 'make model registrationNumber usage')
       .lean();
-    console.log(insurance)
+      
     if (!insurance) {
       return res.status(404).json({ message: 'Insurance not found' });
+    }
+    console.log('req.user.role:', req.user.role);
+    console.log('insurance.createdby:', insurance.createdby.toString());
+    console.log('req.user._id:', req.user._id.toString());
+    if (req.user.role !== 'admin' && insurance.createdby.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Access denied. You can only view insurances you created.' });
     }
     
     const enhancedInsurance = {
@@ -267,15 +332,31 @@ const getInsuranceById = async (req, res) => {
 
 const getInsuranceStats = async (req, res) => {
   try {
-    const stats = await Insurance.aggregate([
-      {
-        $group: {
-          _id: '$status',
-          count: { $sum: 1 },
-          totalPrime: { $sum: '$primeTTC' }
-        }
+    const matchStage = {};
+    
+    // Add createdby filter for non-admin users
+    if (req.user.role !== 'admin') {
+      matchStage.createdby = req.user._id;
+    } else if (req.query.createdby) {
+      matchStage.createdby = req.query.createdby;
+    }
+    
+    const pipeline = [];
+    
+    // Only add match stage if there are conditions
+    if (Object.keys(matchStage).length > 0) {
+      pipeline.push({ $match: matchStage });
+    }
+    
+    pipeline.push({
+      $group: {
+        _id: '$status',
+        count: { $sum: 1 },
+        totalPrime: { $sum: '$primeTTC' }
       }
-    ]);
+    });
+    
+    const stats = await Insurance.aggregate(pipeline);
     
     res.json(stats);
   } catch (error) {
@@ -286,7 +367,15 @@ const getInsuranceStats = async (req, res) => {
 const renewInsurance = async (req, res) => {
   try {
     const insurance = await Insurance.findById(req.params.id);
-    if (!insurance) return res.status(404).json({ message: 'Insurance not found' });
+    
+    if (!insurance) {
+      return res.status(404).json({ message: 'Insurance not found' });
+    }
+    
+    // Check if user has permission to renew this insurance
+    if (req.user.role !== 'admin' && insurance.createdby.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Access denied. You can only renew insurances you created.' });
+    }
     
     const renewedInsurance = await Insurance.findByIdAndUpdate(
       req.params.id,
@@ -317,6 +406,11 @@ const cancelInsurance = async (req, res) => {
     
     if (!insurance) {
       return res.status(404).json({ message: 'Insurance not found' });
+    }
+    
+    // Check if user has permission to cancel this insurance
+    if (req.user.role !== 'admin' && insurance.createdby.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Access denied. You can only cancel insurances you created.' });
     }
     
     // Check if insurance is already canceled
@@ -435,6 +529,14 @@ const changeInsuranceTypeToResel = async (req, res) => {
         message: 'Insurance not found' 
       });
     }
+    
+    // Check if user has permission to change this insurance type
+    if (req.user.role !== 'admin' && insurance.createdby.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Access denied. You can only modify insurances you created.' 
+      });
+    }
 
     // 2. Update insurance status
     const updatedInsurance = await Insurance.findByIdAndUpdate(
@@ -455,6 +557,10 @@ const changeInsuranceTypeToResel = async (req, res) => {
           message: 'Invalid refund amount' 
         });
       }
+      
+      // Get total payments
+      const payments = await Payment.find({ insurance: insuranceId });
+      const totalPaid = payments.reduce((sum, payment) => sum + (payment.amount > 0 ? payment.amount : 0), 0);
       
       if (refundData.refundAmount > totalPaid) {
         return res.status(400).json({
@@ -478,68 +584,87 @@ const changeInsuranceTypeToResel = async (req, res) => {
 };
 
 
+// In your processRefund controller
+// Add this to your controller
 const processRefund = async (req, res) => {
   try {
-    const { id: insuranceId } = req.params;
+    const {id : insuranceId } = req.params;
     const { refundAmount, refundMethod, refundReason } = req.body;
-    
-    // Validate user authentication
-    if (!req.user._id) {
-      return res.status(401).json({ message: 'Authentication required' });
-    }
-    
-    // Validate input
+    console.log("refundAmount",refundAmount)
+    console.log("refundMethod",refundMethod)
+    console.log("refundReason",refundReason)
+    // Validation
     if (!refundAmount || refundAmount <= 0) {
-      return res.status(400).json({ message: 'Valid refund amount is required' });
+      return res.status(400).json({ message: 'Valid refund amount required' });
     }
-    
-    // Find the insurance
+
     const insurance = await Insurance.findById(insuranceId);
-    
-    if (!insurance) {
-      return res.status(404).json({ message: 'Insurance not found' });
-    }
-    
-    // Find all payments for this insurance to calculate the total paid
+    if (!insurance) return res.status(404).json({ message: 'Insurance not found' });
+
+    // Check available balance
     const payments = await Payment.find({ insurance: insuranceId });
-    const totalPaid = payments.reduce((sum, payment) => sum + (payment.amount > 0 ? payment.amount : 0), 0);
-    
-    // Validate that refund is not greater than total paid
-    if (refundAmount > totalPaid) {
-      return res.status(400).json({ 
-        message: `Refund amount (${refundAmount}) cannot exceed total paid amount (${totalPaid})`,
-      });
+    const balance = payments.reduce((sum, p) => sum + p.amount, 0);
+    if (balance < refundAmount) {
+      return res.status(400).json({ message: 'Refund exceeds available balance' });
     }
-    
-    // Find the count of existing payments for this insurance
-    const nextAdvanceNumber = payments.length + 1;
-    
-    // Create a payment record with negative amount (to represent a refund)
-    const refundPayment = await Payment.create({
+    const lastPayment = await Payment.findOne({ insurance: insuranceId })
+  .sort('-advanceNumber')
+  .select('advanceNumber')
+  .lean();
+
+// Calculate next advance number for the refund (negative to indicate refund)
+const nextAdvanceNumber = lastPayment 
+  ? (Math.abs(lastPayment.advanceNumber) + 1)
+  : -1;
+
+    // Create refund
+    const refund = await Payment.create({
       insurance: insuranceId,
-      advanceNumber: nextAdvanceNumber,
-      paymentDate: new Date(),
-      amount: -Math.abs(refundAmount), // Ensure negative amount
+      advanceNumber : nextAdvanceNumber,
+      amount: -Math.abs(refundAmount),
       paymentMethod: refundMethod || 'cash',
-      reference: 'Refund',
-      notes: refundReason || 'Client requested refund'
+      paymentDate: new Date(),
+      notes: refundReason || 'Client requested refund',
+      reference: `REFUND-${Date.now()}`
     });
-    
-    res.status(201).json({
-      success: true,
-      message: 'Refund processed successfully',
-      payment: refundPayment
+
+    // Update insurance status
+    const totalResult = await Payment.aggregate([
+      { $match: { insurance: insuranceId } },
+      { $group: { _id: null, total: { $sum: "$amount" } } }
+    ]);
+
+    await Insurance.findByIdAndUpdate(insuranceId, {
+      'paymentStatus.totalPaid': totalResult[0]?.total || 0,
+      'paymentStatus.isPaidInFull': totalResult[0]?.total >= insurance.primeTTC,
+      'paymentStatus.lastPaymentDate': new Date()
     });
+
+    res.status(201).json(refund);
   } catch (error) {
-    console.error('Error processing refund:', error);
+    console.error('Refund error:', error);
     res.status(500).json({ 
-      success: false,
-      message: 'Error processing refund', 
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Server error'
+      message: 'Refund processing failed',
+      error: error.message 
     });
   }
 };
+const getLatestExpiredInsurance = async (req, res) => {
+  try {
+    const vehicleId = req.params.vehicleId;
+    
+    const insurance = await Insurance.findOne({
+      vehicle: vehicleId,
+      status: { $in: ['Expired', 'Canceled', 'Termination'] }
+    })
+    .sort({ endDate: -1 })
+    .select('policyNumber');
 
+    res.json(insurance || {});
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
 // Don't forget to export this function in the module.exports
 
@@ -554,5 +679,6 @@ module.exports = {
   renewInsurance,
   cancelInsurance,
   changeInsuranceTypeToResel,
-  processRefund
+  processRefund,
+  getLatestExpiredInsurance
 };

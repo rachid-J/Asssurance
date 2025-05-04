@@ -2,27 +2,32 @@
 import { useState } from 'react';
 import { XMarkIcon, ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 
-export default function ReselRefundModal({ isOpen, onClose, onConfirm, insuranceId, currentType, payments, totalPaid }) {
+export default function ReselRefundModal({ isOpen, onClose, onConfirm, totalPaid }) {
   const [loading, setLoading] = useState(false);
   const [refundAmount, setRefundAmount] = useState(0);
   const [refundReason, setRefundReason] = useState('');
   const [refundMethod, setRefundMethod] = useState('cash');
   
-  // Calculate suggested refund (default to 80% of paid amount)
   const suggestedRefund = totalPaid ? (totalPaid * 0.8).toFixed(2) : 0;
 
   const handleConfirm = async () => {
     try {
+      const amount = parseFloat(refundAmount);
+      
+      if (isNaN(amount) || amount <= 0) {
+        alert("Veuillez entrer un montant valide");
+        return;
+      }
+  
       setLoading(true);
-      // Call the provided confirm function with all necessary data
-      await onConfirm(insuranceId, {
-        refundAmount: parseFloat(refundAmount),
+      await onConfirm({
+        refundAmount: amount,
         refundReason,
         refundMethod
       });
       onClose();
     } catch (error) {
-      console.error("Error processing refund:", error);
+      console.error("Erreur de traitement:", error);
     } finally {
       setLoading(false);
     }
@@ -44,7 +49,7 @@ export default function ReselRefundModal({ isOpen, onClose, onConfirm, insurance
               className="text-gray-400 bg-white rounded-md hover:text-gray-500 focus:outline-none"
               onClick={onClose}
             >
-              <span className="sr-only">Close</span>
+              <span className="sr-only">Fermer</span>
               <XMarkIcon className="w-6 h-6" aria-hidden="true" />
             </button>
           </div>
@@ -55,11 +60,12 @@ export default function ReselRefundModal({ isOpen, onClose, onConfirm, insurance
             </div>
             <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
               <h3 className="text-lg font-medium leading-6 text-gray-900">
-                Convert to Resel & Process Refund
+                Conversion en résiliation et remboursement
               </h3>
               <div className="mt-2">
                 <p className="text-sm text-gray-500">
-                  Converting this insurance to "resel" requires processing a refund to the client. Please specify the refund details below.
+                  La conversion de cette assurance en "résiliation" nécessite un remboursement au client.
+                  Veuillez spécifier les détails ci-dessous.
                 </p>
               </div>
             </div>
@@ -72,10 +78,10 @@ export default function ReselRefundModal({ isOpen, onClose, onConfirm, insurance
                   <ExclamationTriangleIcon className="h-5 w-5 text-yellow-400" aria-hidden="true" />
                 </div>
                 <div className="ml-3">
-                  <h3 className="text-sm font-medium text-yellow-800">Refund Information</h3>
+                  <h3 className="text-sm font-medium text-yellow-800">Informations de remboursement</h3>
                   <div className="mt-2 text-sm text-yellow-700">
-                    <p>Total paid by client: <strong>{totalPaid?.toFixed(2)} MAD</strong></p>
-                    <p>Suggested refund amount (80%): <strong>{suggestedRefund} MAD</strong></p>
+                    <p>Total payé par le client : <strong>{totalPaid?.toFixed(2)} MAD</strong></p>
+                    <p>Montant suggéré (80%) : <strong>{suggestedRefund} MAD</strong></p>
                   </div>
                 </div>
               </div>
@@ -84,7 +90,7 @@ export default function ReselRefundModal({ isOpen, onClose, onConfirm, insurance
             <div className="space-y-4">
               <div>
                 <label htmlFor="refundAmount" className="block text-sm font-medium text-gray-700">
-                  Refund Amount (MAD)
+                  Montant du remboursement (MAD)
                 </label>
                 <div className="mt-1 relative rounded-md shadow-sm">
                   <input
@@ -92,11 +98,9 @@ export default function ReselRefundModal({ isOpen, onClose, onConfirm, insurance
                     name="refundAmount"
                     id="refundAmount"
                     className="focus:ring-[#1E265F] focus:border-[#1E265F] block w-full pr-20 sm:text-sm border-gray-300 rounded-md"
-                    placeholder="0.00"
+                    placeholder="0,00"
                     value={refundAmount}
                     onChange={(e) => setRefundAmount(e.target.value)}
-                    min="0"
-                    step="0.01"
                     max={totalPaid}
                   />
                   <div className="absolute inset-y-0 right-0 flex items-center">
@@ -106,7 +110,7 @@ export default function ReselRefundModal({ isOpen, onClose, onConfirm, insurance
                       onClick={handleSuggestedRefund}
                     >
                       <ArrowPathIcon className="h-3 w-3 mr-1" />
-                      Suggest
+                      Suggérer
                     </button>
                   </div>
                 </div>
@@ -114,7 +118,7 @@ export default function ReselRefundModal({ isOpen, onClose, onConfirm, insurance
 
               <div>
                 <label htmlFor="refundMethod" className="block text-sm font-medium text-gray-700">
-                  Refund Method
+                  Méthode de remboursement
                 </label>
                 <select
                   id="refundMethod"
@@ -123,16 +127,16 @@ export default function ReselRefundModal({ isOpen, onClose, onConfirm, insurance
                   value={refundMethod}
                   onChange={(e) => setRefundMethod(e.target.value)}
                 >
-                  <option value="cash">Cash</option>
-                  <option value="bank_transfer">Bank Transfer</option>
-                  <option value="check">Check</option>
-                  <option value="credit_card">Credit Card</option>
+                  <option value="cash">Espèces</option>
+                  <option value="bank_transfer">Virement bancaire</option>
+                  <option value="check">Chèque</option>
+                  <option value="credit_card">Carte de crédit</option>
                 </select>
               </div>
 
               <div>
                 <label htmlFor="refundReason" className="block text-sm font-medium text-gray-700">
-                  Refund Reason/Notes
+                  Motif du remboursement / Notes
                 </label>
                 <div className="mt-1">
                   <textarea
@@ -140,7 +144,7 @@ export default function ReselRefundModal({ isOpen, onClose, onConfirm, insurance
                     name="refundReason"
                     rows={3}
                     className="shadow-sm focus:ring-[#1E265F] focus:border-[#1E265F] block w-full sm:text-sm border-gray-300 rounded-md"
-                    placeholder="Enter reason for refund or any additional notes"
+                    placeholder="Saisissez le motif du remboursement ou des notes supplémentaires"
                     value={refundReason}
                     onChange={(e) => setRefundReason(e.target.value)}
                   />
@@ -156,14 +160,14 @@ export default function ReselRefundModal({ isOpen, onClose, onConfirm, insurance
               onClick={handleConfirm}
               disabled={loading || !refundAmount}
             >
-              {loading ? 'Processing...' : 'Process Refund & Convert'}
+              {loading ? 'Traitement...' : 'Traiter le remboursement et convertir'}
             </button>
             <button
               type="button"
               className="inline-flex justify-center w-full px-4 py-2 mt-3 text-base font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1E265F] sm:mt-0 sm:w-auto sm:text-sm"
               onClick={onClose}
             >
-              Cancel
+              Annuler
             </button>
           </div>
         </div>

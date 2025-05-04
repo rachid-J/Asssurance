@@ -196,10 +196,19 @@ export const deleteInsuranceDocument = async (documentId) => {
 export const downloadInsuranceDocument = async (documentId) => {
   try {
     const response = await axiosClient.get(`/documents/${documentId}/download`, {
-      responseType: 'blob'
+      responseType: 'blob',
     });
-    
-    return response.data;
+
+    // Extraire le nom du fichier depuis les headers
+    const contentDisposition = response.headers['content-disposition'];
+    const fileName = contentDisposition
+      ? contentDisposition.split('filename=')[1].replace(/"/g, '')
+      : `document-${documentId}`;
+
+    return {
+      data: response.data,
+      fileName
+    };
   } catch (error) {
     console.error(`Error downloading document ${documentId}:`, error);
     throw error;
@@ -237,45 +246,28 @@ export const renewInsurance = async (insuranceId) => {
 
 // Change insurance type to resel with optional refund
 // service/insuranceService.js
-export const changeInsuranceTypeToResel = async (insuranceId, refundData = null) => {
+export const processInsuranceRefund = async (insuranceId, refundData) => {
   try {
-    // Convert refund amount to number if present
-    if (refundData) {
-      refundData = {
-        ...refundData,
-        refundAmount: Number(refundData.refundAmount)
-      };
-    }
-    
+    const response = await axiosClient.post(
+      `/insurances/${insuranceId}/refund`,
+      refundData
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Refund processing failed');
+  }
+};
+
+// Add this to your existing insurance service functions
+export const changeInsuranceTypeToResel = async (insuranceId, refundData) => {
+  try {
     const response = await axiosClient.put(
       `/insurances/${insuranceId}/type-resel`,
       refundData
     );
     return response.data;
   } catch (error) {
-    console.error("Error changing insurance type:", error);
-    throw error;
-  }
-};
-// Process refund for an insurance
-export const processInsuranceRefund = async (insuranceId, refundData) => {
-  try {
-    if (!insuranceId) {
-      throw new Error("Insurance ID is required");
-    }
-    
-    if (!refundData || !refundData.refundAmount || refundData.refundAmount <= 0) {
-      throw new Error("Valid refund amount is required");
-    }
-    
-    const response = await axiosClient.post(`/insurances/${insuranceId}/refund`, refundData);
-    return response.data;
-  } catch (error) {
-    console.error(`Error processing refund for insurance ${insuranceId}:`, error);
-    
-    // Enhance error message based on response if available
-    const errorMessage = error.response?.data?.message || 'Failed to process refund';
-    throw new Error(errorMessage);
+    throw new Error(error.response?.data?.message || 'Type change failed');
   }
 };
 export const cancelInsurance = async (insuranceId, refundData = null) => {
@@ -285,5 +277,14 @@ export const cancelInsurance = async (insuranceId, refundData = null) => {
   } catch (error) {
     console.error(`Error canceling insurance ${insuranceId}:`, error);
     throw error;
+  }
+};
+export const getLatestExpiredInsurance = async (vehicleId) => {
+  try {
+    const response = await axiosClient.get(`/insurances/latest-expired/${vehicleId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching expired insurance:', error);
+    return null;
   }
 };

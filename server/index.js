@@ -15,7 +15,7 @@ const clientRoutes = require('./routes/clientRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const vehicleRoutes = require('./routes/vehiclesRoutes');
 const documentRoutes = require('./routes/documentRoutes');
-
+const dashboardRoutes = require('./routes/dashboardRoutes')
 // Load environment variables
 dotenv.config();
 
@@ -85,6 +85,7 @@ app.use('/api/clients', clientRoutes)
 app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/documents', documentRoutes);
+app.use('/api/dashboard',dashboardRoutes)
 // Socket.io connection handler
 io.on('connection', (socket) => {
 

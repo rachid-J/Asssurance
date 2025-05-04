@@ -52,11 +52,7 @@ const vehicleSchema = new mongoose.Schema({
     ref: 'Client',
     required: true
   },
-  insuranceId: { 
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Insurance', 
-    required: true // Changed to false to allow null
-  },
+
   createdby: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

@@ -11,17 +11,16 @@ const DocumentsList = ({ vehicleId, documents = [], onDocumentDeleted, readOnly 
   const [deletingId, setDeletingId] = useState(null);
   const [error, setError] = useState(null);
 
-  // Helper to format date
+  // Formatage de la date en français
   const formatDate = (dateString) => {
     const options = { year: 'numeric', month: 'short', day: 'numeric' };
-    return new Date(dateString).toLocaleDateString(undefined, options);
+    return new Date(dateString).toLocaleDateString('fr-FR', options);
   };
 
-  // Handle document download
+  // Téléchargement du document
   const handleDownload = (documentId, documentName) => {
     const downloadUrl = getVehicleDocumentUrl(vehicleId, documentId);
     
-    // Create an anchor element and trigger download
     const link = document.createElement('a');
     link.href = downloadUrl;
     link.setAttribute('download', documentName);
@@ -30,9 +29,9 @@ const DocumentsList = ({ vehicleId, documents = [], onDocumentDeleted, readOnly 
     document.body.removeChild(link);
   };
 
-  // Handle document deletion
+  // Suppression du document
   const handleDelete = async (documentId) => {
-    if (!window.confirm('Are you sure you want to delete this document?')) {
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce document ?')) {
       return;
     }
 
@@ -46,16 +45,15 @@ const DocumentsList = ({ vehicleId, documents = [], onDocumentDeleted, readOnly 
         onDocumentDeleted(documentId);
       }
     } catch (err) {
-      setError('Failed to delete document: ' + (err.message || 'Unknown error'));
-      console.error('Delete error:', err);
+      setError('Échec de la suppression : ' + (err.message || 'Erreur inconnue'));
+      console.error('Erreur de suppression :', err);
     } finally {
       setDeletingId(null);
     }
   };
 
-  // Get appropriate icon for document type
+  // Icône selon le type de document
   const getDocumentIcon = (doc) => {
-    // Default icon
     return <DocumentTextIcon className="h-6 w-6 text-[#1E265F]" />;
   };
 
@@ -63,8 +61,8 @@ const DocumentsList = ({ vehicleId, documents = [], onDocumentDeleted, readOnly 
     return (
       <div className="text-center py-8 bg-gray-50 rounded-lg border border-gray-200">
         <DocumentTextIcon className="mx-auto h-12 w-12 text-gray-400" />
-        <h3 className="mt-2 text-sm font-medium text-gray-900">No documents</h3>
-        <p className="mt-1 text-sm text-gray-500">No documents have been uploaded yet.</p>
+        <h3 className="mt-2 text-sm font-medium text-gray-900">Aucun document</h3>
+        <p className="mt-1 text-sm text-gray-500">Aucun document n'a été téléversé pour le moment.</p>
       </div>
     );
   }
@@ -84,8 +82,8 @@ const DocumentsList = ({ vehicleId, documents = [], onDocumentDeleted, readOnly 
             <tr>
               <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Document</th>
               <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Type</th>
-              <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Issue Date</th>
-              <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Expiry Date</th>
+              <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Date d'émission</th>
+              <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Date d'expiration</th>
               <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
                 <span className="sr-only">Actions</span>
               </th>
@@ -101,7 +99,7 @@ const DocumentsList = ({ vehicleId, documents = [], onDocumentDeleted, readOnly 
                     </div>
                     <div className="ml-4">
                       <div className="font-medium text-gray-900 truncate max-w-xs" title={doc.title}>
-                        {doc.title || doc.file?.originalName || 'Unnamed Document'}
+                        {doc.title || doc.file?.originalName || 'Document sans nom'}
                       </div>
                       {doc.file && (
                         <div className="text-gray-500 text-xs">
@@ -125,7 +123,7 @@ const DocumentsList = ({ vehicleId, documents = [], onDocumentDeleted, readOnly 
                     <button
                       onClick={() => handleDownload(doc._id, doc.file?.originalName || doc.title)}
                       className="text-[#1E265F] hover:text-[#272F65]"
-                      title="Download"
+                      title="Télécharger"
                     >
                       <ArrowDownTrayIcon className="h-5 w-5" />
                     </button>
@@ -137,7 +135,7 @@ const DocumentsList = ({ vehicleId, documents = [], onDocumentDeleted, readOnly 
                         className={`text-red-600 hover:text-red-900 ${
                           deletingId === doc._id ? 'opacity-50 cursor-not-allowed' : ''
                         }`}
-                        title="Delete"
+                        title="Supprimer"
                       >
                         <TrashIcon className="h-5 w-5" />
                       </button>

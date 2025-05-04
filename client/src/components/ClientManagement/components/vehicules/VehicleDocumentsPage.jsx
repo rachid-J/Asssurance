@@ -20,10 +20,10 @@ const VehicleDocumentsPage = () => {
         setIsLoading(true);
         const vehicleData = await getVehicle(vehicleId);
         console.log("vehicleData", vehicleData);
-        setVehicle(vehicleData);
+        setVehicle(vehicleData.vehicle);
         
         // Set documents from the vehicle data instead of empty array
-        setDocuments(vehicleData.documents || []);
+        setDocuments(vehicleData.vehicle.documents || []);
         setIsLoading(false);
       } catch (error) {
         console.error('Error fetching data:', error);

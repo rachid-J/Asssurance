@@ -8,7 +8,7 @@ exports.getAllPayments = async (req, res) => {
     const payments = await Payment.find()
       .populate({
         path: 'insurance',
-        select: 'policyNumber client', // Keep policyNumber field
+        select: 'policyNumber client primeTTC primeActuel endDate ', // Keep policyNumber field
         populate: {
           path: 'client',
           select: 'name firstName'

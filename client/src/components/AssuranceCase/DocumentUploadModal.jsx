@@ -11,36 +11,35 @@ export default function DocumentUploadModal({ isOpen, onClose, insuranceId, onDo
   const [error, setError] = useState('');
   const fileInputRef = useRef(null);
 
-  // Define allowed document types
+  // Types de documents autorisés
   const allowedTypes = [
-    { value: 'contract', label: 'Insurance Contract' },
-    { value: 'id', label: 'ID Document' },
-    { value: 'vehicle', label: 'Vehicle Document' },
-    { value: 'inspection', label: 'Technical Inspection' },
-    { value: 'proof', label: 'Proof of Payment' },
-    { value: 'other', label: 'Other' }
+    { value: 'contract', label: 'Contrat d\'assurance' },
+    { value: 'id', label: 'Document d\'identité' },
+    { value: 'vehicle', label: 'Document véhicule' },
+    { value: 'inspection', label: 'Contrôle technique' },
+    { value: 'proof', label: 'Preuve de paiement' },
+    { value: 'other', label: 'Autre' }
   ];
 
   const handleFileChange = (e) => {
     if (e.target.files?.length) {
       const selectedFile = e.target.files[0];
       
-      // Validate file size (max 10MB)
+      // Validation taille du fichier (max 10MB)
       if (selectedFile.size > 10 * 1024 * 1024) {
-        setError('File size must be less than 10MB');
+        setError('La taille du fichier doit être inférieure à 10 Mo');
         return;
       }
       
-      // Validate file type
+      // Validation type de fichier
       const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'application/msword', 
                          'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/tiff'];
       if (!validTypes.includes(selectedFile.type)) {
-        setError('Invalid file type. Only PDF, JPEG, PNG, DOC, DOCX and TIFF are allowed.');
+        setError('Type de fichier non valide. Formats acceptés : PDF, JPEG, PNG, DOC, DOCX et TIFF');
         return;
       }
       
       setFile(selectedFile);
-      // Set default document name from filename if not already set
       if (!documentName) {
         setDocumentName(selectedFile.name.split('.')[0]);
       }
@@ -51,17 +50,17 @@ export default function DocumentUploadModal({ isOpen, onClose, insuranceId, onDo
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!file) {
-      setError('Please select a file to upload');
+      setError('Veuillez sélectionner un fichier');
       return;
     }
     
     if (!documentName.trim()) {
-      setError('Document name is required');
+      setError('Le nom du document est requis');
       return;
     }
     
     if (!documentType) {
-      setError('Please select a document type');
+      setError('Veuillez sélectionner un type de document');
       return;
     }
     
@@ -72,7 +71,6 @@ export default function DocumentUploadModal({ isOpen, onClose, insuranceId, onDo
         type: documentType,
       });
       
-      // Clear form and close modal
       setFile(null);
       setDocumentName('');
       setDocumentType('');
@@ -80,14 +78,13 @@ export default function DocumentUploadModal({ isOpen, onClose, insuranceId, onDo
         fileInputRef.current.value = '';
       }
       
-      // Notify parent component
       if (onDocumentUploaded) {
         onDocumentUploaded();
       }
       
       onClose();
     } catch (error) {
-      setError(error.message || 'Failed to upload document');
+      setError(error.message || 'Échec du téléversement');
     } finally {
       setIsUploading(false);
     }
@@ -98,7 +95,6 @@ export default function DocumentUploadModal({ isOpen, onClose, insuranceId, onDo
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex items-center bg-[#1e265f4f] justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-       
 
         <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
@@ -109,13 +105,14 @@ export default function DocumentUploadModal({ isOpen, onClose, insuranceId, onDo
             </div>
             <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
               <div className="flex justify-between items-center">
-                <h3 className="text-lg leading-6 font-medium text-gray-900">Upload Document</h3>
+                <h3 className="text-lg leading-6 font-medium text-gray-900">Téléverser un document</h3>
                 <button
                   type="button"
                   className="rounded-md text-gray-400 hover:text-gray-500 focus:outline-none"
                   onClick={onClose}
                 >
                   <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+                  <span className="sr-only">Fermer</span>
                 </button>
               </div>
               
@@ -128,7 +125,7 @@ export default function DocumentUploadModal({ isOpen, onClose, insuranceId, onDo
               <form className="mt-4" onSubmit={handleSubmit}>
                 <div className="mb-4">
                   <label htmlFor="documentName" className="block text-sm font-medium text-gray-700">
-                    Document Name
+                    Nom du document
                   </label>
                   <input
                     type="text"
@@ -142,7 +139,7 @@ export default function DocumentUploadModal({ isOpen, onClose, insuranceId, onDo
                 
                 <div className="mb-4">
                   <label htmlFor="documentType" className="block text-sm font-medium text-gray-700">
-                    Document Type
+                    Type de document
                   </label>
                   <select
                     id="documentType"
@@ -151,7 +148,7 @@ export default function DocumentUploadModal({ isOpen, onClose, insuranceId, onDo
                     onChange={(e) => setDocumentType(e.target.value)}
                     required
                   >
-                    <option value="">Select document type</option>
+                    <option value="">Sélectionner un type</option>
                     {allowedTypes.map((type) => (
                       <option key={type.value} value={type.value}>
                         {type.label}
@@ -162,7 +159,7 @@ export default function DocumentUploadModal({ isOpen, onClose, insuranceId, onDo
                 
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700">
-                    Upload File
+                    Fichier à téléverser
                   </label>
                   <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
                     <div className="space-y-1 text-center">
@@ -172,7 +169,7 @@ export default function DocumentUploadModal({ isOpen, onClose, insuranceId, onDo
                           htmlFor="file-upload"
                           className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500"
                         >
-                          <span>Upload a file</span>
+                          <span>Téléverser un fichier</span>
                           <input
                             id="file-upload"
                             name="file-upload"
@@ -183,14 +180,14 @@ export default function DocumentUploadModal({ isOpen, onClose, insuranceId, onDo
                             accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.tiff"
                           />
                         </label>
-                        <p className="pl-1">or drag and drop</p>
+                        <p className="pl-1">ou glisser-déposer</p>
                       </div>
                       <p className="text-xs text-gray-500">
-                        PDF, PNG, JPG, DOCX up to 10MB
+                        PDF, PNG, JPG, DOCX jusqu'à 10 Mo
                       </p>
                       {file && (
                         <p className="text-xs text-green-600 font-medium">
-                          {file.name} ({(file.size / (1024 * 1024)).toFixed(2)} MB)
+                          {file.name} ({(file.size / (1024 * 1024)).toFixed(2)} Mo)
                         </p>
                       )}
                     </div>
@@ -203,14 +200,14 @@ export default function DocumentUploadModal({ isOpen, onClose, insuranceId, onDo
                     disabled={isUploading}
                     className={`w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-[#1E265F] text-base font-medium text-white hover:bg-[#272F65] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1E265F] sm:ml-3 sm:w-auto sm:text-sm ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
-                    {isUploading ? 'Uploading...' : 'Upload Document'}
+                    {isUploading ? 'Téléversement en cours...' : 'Téléverser le document'}
                   </button>
                   <button
                     type="button"
                     className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1E265F] sm:mt-0 sm:w-auto sm:text-sm"
                     onClick={onClose}
                   >
-                    Cancel
+                    Annuler
                   </button>
                 </div>
               </form>

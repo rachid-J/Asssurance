@@ -7,9 +7,8 @@ export default function CancelModal({ isOpen, onClose, onConfirm, insuranceId, t
   const [refundAmount, setRefundAmount] = useState(totalPaid > 0 ? (totalPaid * 0.7).toFixed(2) : 0);
   const [refundMethod, setRefundMethod] = useState('cash');
   const [cancelReason, setCancelReason] = useState('');
-  const [penaltyPercentage, setPenaltyPercentage] = useState(30); // Default penalty of 30%
+  const [penaltyPercentage, setPenaltyPercentage] = useState(30);
 
-  // Calculate refund amount based on penalty percentage
   const calculateRefund = (percentage) => {
     const penalty = (totalPaid * percentage) / 100;
     return (totalPaid - penalty).toFixed(2);
@@ -31,7 +30,7 @@ export default function CancelModal({ isOpen, onClose, onConfirm, insuranceId, t
       });
       onClose();
     } catch (error) {
-      console.error("Error canceling insurance:", error);
+      console.error("Erreur lors de l'annulation :", error);
     } finally {
       setLoading(false);
     }
@@ -49,7 +48,7 @@ export default function CancelModal({ isOpen, onClose, onConfirm, insuranceId, t
               className="text-gray-400 bg-white rounded-md hover:text-gray-500 focus:outline-none"
               onClick={onClose}
             >
-              <span className="sr-only">Close</span>
+              <span className="sr-only">Fermer</span>
               <XMarkIcon className="w-6 h-6" aria-hidden="true" />
             </button>
           </div>
@@ -60,11 +59,11 @@ export default function CancelModal({ isOpen, onClose, onConfirm, insuranceId, t
             </div>
             <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
               <h3 className="text-lg font-medium leading-6 text-gray-900">
-                Cancel Insurance
+                Annuler la police d'assurance
               </h3>
               <div className="mt-2">
                 <p className="text-sm text-gray-500">
-                  Are you sure you want to cancel this insurance? This action cannot be undone.
+                  Êtes-vous sûr de vouloir annuler cette police ? Cette action est irréversible.
                 </p>
               </div>
             </div>
@@ -78,11 +77,11 @@ export default function CancelModal({ isOpen, onClose, onConfirm, insuranceId, t
                     <ExclamationTriangleIcon className="h-5 w-5 text-red-400" aria-hidden="true" />
                   </div>
                   <div className="ml-3">
-                    <h3 className="text-sm font-medium text-red-800">Refund Information</h3>
+                    <h3 className="text-sm font-medium text-red-800">Informations de remboursement</h3>
                     <div className="mt-2 text-sm text-red-700">
-                      <p>Total paid by client: <strong>{totalPaid.toFixed(2)} MAD</strong></p>
-                      <p>Cancellation penalty: <strong>{penaltyPercentage}%</strong></p>
-                      <p>Refund amount: <strong>{refundAmount} MAD</strong></p>
+                      <p>Total payé par le client : <strong>{totalPaid.toFixed(2)} €</strong></p>
+                      <p>Pénalité d'annulation : <strong>{penaltyPercentage}%</strong></p>
+                      <p>Montant à rembourser : <strong>{refundAmount} €</strong></p>
                     </div>
                   </div>
                 </div>
@@ -91,7 +90,7 @@ export default function CancelModal({ isOpen, onClose, onConfirm, insuranceId, t
               <div className="space-y-4">
                 <div>
                   <label htmlFor="penaltyPercentage" className="block text-sm font-medium text-gray-700">
-                    Penalty Percentage
+                    Pourcentage de pénalité
                   </label>
                   <div className="mt-1 flex items-center">
                     <input
@@ -110,7 +109,7 @@ export default function CancelModal({ isOpen, onClose, onConfirm, insuranceId, t
 
                 <div>
                   <label htmlFor="refundAmount" className="block text-sm font-medium text-gray-700">
-                    Refund Amount (MAD)
+                    Montant du remboursement (€)
                   </label>
                   <input
                     type="number"
@@ -127,7 +126,7 @@ export default function CancelModal({ isOpen, onClose, onConfirm, insuranceId, t
 
                 <div>
                   <label htmlFor="refundMethod" className="block text-sm font-medium text-gray-700">
-                    Refund Method
+                    Méthode de remboursement
                   </label>
                   <select
                     id="refundMethod"
@@ -136,16 +135,16 @@ export default function CancelModal({ isOpen, onClose, onConfirm, insuranceId, t
                     value={refundMethod}
                     onChange={(e) => setRefundMethod(e.target.value)}
                   >
-                    <option value="cash">Cash</option>
-                    <option value="bank_transfer">Bank Transfer</option>
-                    <option value="check">Check</option>
-                    <option value="credit_card">Credit Card</option>
+                    <option value="cash">Espèces</option>
+                    <option value="bank_transfer">Virement bancaire</option>
+                    <option value="check">Chèque</option>
+                    <option value="credit_card">Carte de crédit</option>
                   </select>
                 </div>
 
                 <div>
                   <label htmlFor="cancelReason" className="block text-sm font-medium text-gray-700">
-                    Cancellation Reason
+                    Motif d'annulation
                   </label>
                   <div className="mt-1">
                     <textarea
@@ -153,7 +152,7 @@ export default function CancelModal({ isOpen, onClose, onConfirm, insuranceId, t
                       name="cancelReason"
                       rows={3}
                       className="shadow-sm focus:ring-red-500 focus:border-red-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                      placeholder="Enter reason for cancellation"
+                      placeholder="Saisissez le motif d'annulation"
                       value={cancelReason}
                       onChange={(e) => setCancelReason(e.target.value)}
                     />
@@ -170,14 +169,14 @@ export default function CancelModal({ isOpen, onClose, onConfirm, insuranceId, t
               onClick={handleConfirm}
               disabled={loading}
             >
-              {loading ? 'Processing...' : totalPaid > 0 ? 'Cancel & Process Refund' : 'Confirm Cancellation'}
+              {loading ? 'Traitement en cours...' : totalPaid > 0 ? 'Annuler et rembourser' : 'Confirmer l'/'annulation'}
             </button>
             <button
               type="button"
               className="inline-flex justify-center w-full px-4 py-2 mt-3 text-base font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1E265F] sm:mt-0 sm:w-auto sm:text-sm"
               onClick={onClose}
             >
-              Back
+              Retour
             </button>
           </div>
         </div>

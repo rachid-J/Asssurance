@@ -12,7 +12,7 @@ const DocumentUploader = ({ vehicleId, onDocumentAdded, disabled = false }) => {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
   const [formData, setFormData] = useState({
-    type: 'Registration',
+    type: 'Immatriculation',
     title: '',
     issueDate: new Date().toISOString().split('T')[0],
     expiryDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
@@ -24,7 +24,6 @@ const DocumentUploader = ({ vehicleId, onDocumentAdded, disabled = false }) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
       setFile(selectedFile);
-      // Auto-fill title with filename if empty
       if (!formData.title) {
         setFormData({
           ...formData,
@@ -46,7 +45,7 @@ const DocumentUploader = ({ vehicleId, onDocumentAdded, disabled = false }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!file) {
-      setError('Please select a file to upload');
+      setError('Veuillez sélectionner un fichier à téléverser');
       return;
     }
 
@@ -54,18 +53,15 @@ const DocumentUploader = ({ vehicleId, onDocumentAdded, disabled = false }) => {
       setUploading(true);
       setError(null);
 
-      // Create form data for upload
       const uploadData = new FormData();
       uploadData.append('documentFile', file);
       
-      // Add form fields
       Object.keys(formData).forEach(key => {
         uploadData.append(key, formData[key]);
       });
 
       const response = await addVehicleDocument(vehicleId, uploadData);
       
-      // Clear form
       setFile(null);
       setFormData({
         ...formData,
@@ -73,14 +69,13 @@ const DocumentUploader = ({ vehicleId, onDocumentAdded, disabled = false }) => {
         notes: ''
       });
       
-      // Notify parent component
       if (onDocumentAdded) {
         onDocumentAdded(response.document);
       }
       
     } catch (err) {
-      setError(err.message || 'Failed to upload document');
-      console.error('Upload error:', err);
+      setError(err.message || 'Échec du téléversement du document');
+      console.error('Erreur de téléversement :', err);
     } finally {
       setUploading(false);
     }
@@ -90,16 +85,15 @@ const DocumentUploader = ({ vehicleId, onDocumentAdded, disabled = false }) => {
     setFile(null);
   };
 
-  // Helper to format file size
   const formatFileSize = (bytes) => {
-    if (bytes < 1024) return bytes + ' bytes';
-    else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-    else return (bytes / 1048576).toFixed(1) + ' MB';
+    if (bytes < 1024) return bytes + ' octets';
+    else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' Ko';
+    else return (bytes / 1048576).toFixed(1) + ' Mo';
   };
 
   return (
     <div className="bg-white p-6 rounded-lg border border-gray-200">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Upload Document</h3>
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">Téléverser un document</h3>
       
       {error && (
         <div className="mb-4 bg-red-50 border border-red-200 text-red-800 p-3 rounded-md flex items-start">
@@ -109,10 +103,9 @@ const DocumentUploader = ({ vehicleId, onDocumentAdded, disabled = false }) => {
       )}
       
       <form onSubmit={handleSubmit}>
-        {/* File Input */}
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            File <span className="text-red-500">*</span>
+            Fichier <span className="text-red-500">*</span>
           </label>
           
           {!file ? (
@@ -121,7 +114,7 @@ const DocumentUploader = ({ vehicleId, onDocumentAdded, disabled = false }) => {
                 <DocumentIcon className="mx-auto h-12 w-12 text-gray-400" />
                 <div className="flex text-sm text-gray-600 justify-center">
                   <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-[#1E265F] hover:text-[#272F65] focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-[#1E265F]">
-                    <span>Upload a file</span>
+                    <span>Téléverser un fichier</span>
                     <input 
                       id="file-upload" 
                       name="file-upload" 
@@ -131,10 +124,10 @@ const DocumentUploader = ({ vehicleId, onDocumentAdded, disabled = false }) => {
                       disabled={disabled || uploading}
                     />
                   </label>
-                  <p className="pl-1">or drag and drop</p>
+                  <p className="pl-1">ou glisser-déposer</p>
                 </div>
                 <p className="text-xs text-gray-500">
-                  PDF, PNG, JPG, DOCX up to 10MB
+                  PDF, PNG, JPG, DOCX jusqu'à 10 Mo
                 </p>
               </div>
             </div>
@@ -162,10 +155,9 @@ const DocumentUploader = ({ vehicleId, onDocumentAdded, disabled = false }) => {
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          {/* Document Type */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Document Type <span className="text-red-500">*</span>
+              Type de document <span className="text-red-500">*</span>
             </label>
             <select
               name="type"
@@ -175,17 +167,16 @@ const DocumentUploader = ({ vehicleId, onDocumentAdded, disabled = false }) => {
               className="w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#1E265F] focus:border-transparent"
               required
             >
-              <option value="Registration">Registration</option>
-              <option value="Technical Inspection">Technical Inspection</option>
-              <option value="Insurance">Insurance</option>
-              <option value="Other">Other</option>
+              <option value="Immatriculation">Immatriculation</option>
+              <option value="Contrôle technique">Contrôle technique</option>
+              <option value="Assurance">Assurance</option>
+              <option value="Autre">Autre</option>
             </select>
           </div>
           
-          {/* Document Title */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Document Title <span className="text-red-500">*</span>
+              Titre du document <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -194,15 +185,14 @@ const DocumentUploader = ({ vehicleId, onDocumentAdded, disabled = false }) => {
               onChange={handleInputChange}
               disabled={uploading || disabled}
               className="w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#1E265F] focus:border-transparent"
-              placeholder="Enter document title"
+              placeholder="Saisir le titre du document"
               required
             />
           </div>
           
-          {/* Issue Date */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Issue Date <span className="text-red-500">*</span>
+              Date d'émission <span className="text-red-500">*</span>
             </label>
             <input
               type="date"
@@ -215,10 +205,9 @@ const DocumentUploader = ({ vehicleId, onDocumentAdded, disabled = false }) => {
             />
           </div>
           
-          {/* Expiry Date */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Expiry Date <span className="text-red-500">*</span>
+              Date d'expiration <span className="text-red-500">*</span>
             </label>
             <input
               type="date"
@@ -231,10 +220,9 @@ const DocumentUploader = ({ vehicleId, onDocumentAdded, disabled = false }) => {
             />
           </div>
           
-          {/* Issuing Authority */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Issuing Authority
+              Autorité émettrice
             </label>
             <input
               type="text"
@@ -243,11 +231,10 @@ const DocumentUploader = ({ vehicleId, onDocumentAdded, disabled = false }) => {
               onChange={handleInputChange}
               disabled={uploading || disabled}
               className="w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#1E265F] focus:border-transparent"
-              placeholder="Authority that issued the document"
+              placeholder="Autorité ayant émis le document"
             />
           </div>
           
-          {/* Notes */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Notes
@@ -259,7 +246,7 @@ const DocumentUploader = ({ vehicleId, onDocumentAdded, disabled = false }) => {
               onChange={handleInputChange}
               disabled={uploading || disabled}
               className="w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#1E265F] focus:border-transparent"
-              placeholder="Additional notes (optional)"
+              placeholder="Notes supplémentaires (facultatif)"
             />
           </div>
         </div>
@@ -272,7 +259,7 @@ const DocumentUploader = ({ vehicleId, onDocumentAdded, disabled = false }) => {
               (!file || uploading || disabled) ? 'opacity-50 cursor-not-allowed' : ''
             }`}
           >
-            {uploading ? 'Uploading...' : 'Upload Document'}
+            {uploading ? 'Téléversement en cours...' : 'Téléverser le document'}
           </button>
         </div>
       </form>
